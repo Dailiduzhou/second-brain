@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Index Page.md",
+                "file": "README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Index Page"
+              "title": "README"
             }
           }
         ],
@@ -204,10 +204,13 @@
   "active": "bfba509b98ef0bd6",
   "lastOpenFiles": [
     "pitfalls.md",
-    "Basic TODO List.md",
-    "go-zero key takeaway.md",
-    "微服务.md",
     "Index Page.md",
+    "custom-http-status-codes.md",
+    "ecommerce-response-error-handling.md",
+    "custom-field-query-cache.md",
+    "go-zero key takeaway.md",
+    "Basic TODO List.md",
+    "微服务.md",
     "README.md",
     "创建链接.md",
     "未命名.base",
