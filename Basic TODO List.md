@@ -31,4 +31,6 @@
 - [ ] grafana loki 在go-kratos
 - [ ] otel 文档
 - [ ] jaeger 基础用法
-- [ ] go zero的sqlx with cache的用法 
+- [x] go zero的sqlx with cache的用法 
+- [ ] gozerodtm 项目阅读
+- [ ] go-zero-mall 项目阅读

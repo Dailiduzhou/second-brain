@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "dtm.md",
+                "file": "Basic TODO List.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "dtm"
+              "title": "Basic TODO List"
             }
           }
         ],
@@ -203,9 +203,9 @@
   },
   "active": "a2aba4e8e0334e9b",
   "lastOpenFiles": [
+    "dtm.md",
     "dtm.pub.md",
     "dtm containerization.md",
-    "dtm.md",
     "Index Page.md",
     "Basic TODO List.md",
     "kratos layout.md",
