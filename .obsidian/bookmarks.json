@@ -1,0 +1,126 @@
+{
+  "items": [
+    {
+      "type": "group",
+      "title": "🚀 Go-Zero 框架",
+      "color": "#3b82f6",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1779779400000,
+          "path": "go-zero key takeaway.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400001,
+          "path": "pitfalls.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400002,
+          "path": "custom-http-status-codes.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400003,
+          "path": "custom-field-query-cache.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400004,
+          "path": "dtm in go-zero.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400005,
+          "path": "gozero-sqltx-tracing.md"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "🏗️ Go-Kratos 框架",
+      "color": "#8b5cf6",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1779779400010,
+          "path": "go-kratos架构.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400011,
+          "path": "kratos layout.md"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "🔄 DTM 分布式事务",
+      "color": "#f97316",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1779779400020,
+          "path": "dtm.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400021,
+          "path": "dtm containerization.md"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "💾 数据库",
+      "color": "#10b981",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1779779400030,
+          "path": "数据库.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400031,
+          "path": "Redis.md"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "🌐 微服务",
+      "color": "#06b6d4",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1779779400040,
+          "path": "微服务.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400041,
+          "path": "可观测性.md"
+        },
+        {
+          "type": "file",
+          "ctime": 1779779400042,
+          "path": "压测.md"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "title": "🦀 编程语言",
+      "color": "#ef4444",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1779779400050,
+          "path": "Rust.md"
+        }
+      ]
+    }
+  ]
+}

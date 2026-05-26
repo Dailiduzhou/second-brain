@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Basic TODO List.md",
+                "file": "go-kratos架构.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Basic TODO List"
+              "title": "go-kratos架构"
             }
           }
         ]
@@ -188,26 +188,26 @@
   },
   "active": "4acfb3985e2548ed",
   "lastOpenFiles": [
-    "可观测性.md",
-    "数据库.md",
-    "压测.md",
-    "微服务.md",
-    "Basic TODO List.md",
-    "custom-field-query-cache.md",
-    "custom-http-status-codes.md",
-    "dtm.md",
-    "dtm in go-zero.md",
-    "go-kratos架构.md",
     "go-zero key takeaway.md",
     "gozero-sqltx-tracing.md",
     "Index Page.md",
-    "pitfalls.md",
-    "README.md",
+    "kratos layout.md",
     "Redis.md",
     "Rust.md",
+    "README.md",
+    "pitfalls.md",
+    "go-kratos架构.md",
+    "dtm in go-zero.md",
+    "可观测性.md",
+    "custom-field-query-cache.md",
+    "dtm.md",
+    "数据库.md",
+    "custom-http-status-codes.md",
+    "压测.md",
     "dtm containerization.md",
+    "微服务.md",
+    "Basic TODO List.md",
     "2026-05-26.md",
-    "kratos layout.md",
     "dtm.pub.md",
     "Untitled Kanban.md",
     "ecommerce-response-error-handling.md",
