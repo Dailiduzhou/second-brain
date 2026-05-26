@@ -203,6 +203,11 @@
   },
   "active": "95bcc32afb9746cc",
   "lastOpenFiles": [
+    "压测.md",
+    "可观测性.md",
+    "数据库.md",
+    "Redis.md",
+    "Rust.md",
     "custom-http-status-codes.md",
     "custom-field-query-cache.md",
     "Basic TODO List.md",

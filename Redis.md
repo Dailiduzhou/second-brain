@@ -1,0 +1,18 @@
+---
+category: database
+type: cache
+status: seedling
+---
+
+# Redis
+
+Redis 内存数据结构存储系统。
+
+## 核心主题
+- 数据结构
+- 持久化机制
+- 集群与高可用
+
+## 相关链接
+- [[Index Page]]
+- [[数据库]]
