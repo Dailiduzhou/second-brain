@@ -34,3 +34,4 @@
 - [x] go zero的sqlx with cache的用法 
 - [ ] gozerodtm 项目阅读
 - [ ] go-zero-mall 项目阅读
+- [ ] Kafka教程

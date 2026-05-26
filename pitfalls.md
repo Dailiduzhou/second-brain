@@ -20,6 +20,7 @@ cd user
 goctl rpc protoc -go_out=. -go-grpc_out=. -zrpc_out=.
 ```
 
+`zrpc`是`go-zero`的各个grpc微服务互相调用的依赖包。
 ## Redis字段冲突
 
 `zrpc.RpcServerConf`中有`Redis`字段，所以在`/etc/XXX.yaml`中需要用`BizRedis`来避免冲突

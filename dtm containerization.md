@@ -1,4 +1,4 @@
-#dtm/containerization
+s#dtm/containerization
 **DTM** 的官方镜像`yedf/dtm` 开始就运行，依赖dtm-config.yaml
 
 `dtm-config.yaml`
