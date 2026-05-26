@@ -14,6 +14,7 @@ status: seedling
 ## 子主题
 - [[dtm in go-zero]]
 - [[dtm containerization]]
+- [[dtm retry mechanism]]
 
 ## 相关链接
 - [[微服务]]

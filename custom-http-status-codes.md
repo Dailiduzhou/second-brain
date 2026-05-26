@@ -748,8 +748,6 @@ func TestErrorHandler_UserNotFound(t *testing.T) {
 
 ## References
 
-- [go-zero REST API Patterns](./rest-api-patterns.md)
-- [go-zero Best Practices](../best-practices/overview.md)
 - [go-zero Official Documentation](https://go-zero.dev)
 - [HTTP Status Codes (RFC 7231)](https://tools.ietf.org/html/rfc7231#section-6)
 
