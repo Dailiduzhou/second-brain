@@ -42,6 +42,7 @@ status: seedling
 - [ ] gozerodtm 项目阅读
 - [ ] go-zero-mall 项目阅读
 - [ ] Kafka教程
+- [ ] c4 compiler
 
 
 
