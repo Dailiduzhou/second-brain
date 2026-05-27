@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "dtm in go-zero.md",
+                "file": "OSS 实现.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "dtm in go-zero"
+              "title": "OSS 实现"
             }
           }
         ],
@@ -201,18 +201,19 @@
       "bases:新建数据库": false
     }
   },
-  "active": "cf03e2a005cb9819",
+  "active": "304016327c08d13c",
   "lastOpenFiles": [
+    "电商系统幂等性和细节.md",
+    "电商系统.md",
+    "电商系统技术选型.md",
+    "电商系统整体架构.md",
+    "dtm in go-zero.md",
     "pitfalls.md",
     "README.md",
     "river in go-kratos.md",
     "Rust.md",
-    "电商系统.md",
-    "电商系统技术选型.md",
-    "电商系统幂等性和细节.md",
     "OSS 实现.md",
     "Basic TODO List.md",
-    "电商系统整体架构.md",
     "可观测性.md",
     "微服务.md",
     "数据库.md",
@@ -220,7 +221,6 @@
     "gozero-sqltx-tracing.md",
     "go-zero key takeaway.md",
     "kratos layout.md",
-    "dtm in go-zero.md",
     "River key takeaway.md",
     "go-kratos架构.md",
     "dtm.md",
