@@ -43,6 +43,7 @@ status: seedling
 - [x] go-zero-mall 项目阅读
 - [ ] Kafka教程
 - [ ] c4 compiler
+- [ ] Github Actions CD
 
 
 
