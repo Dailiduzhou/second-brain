@@ -13,12 +13,26 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "go-kratos架构.md",
+                "file": "river in go-kratos.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "go-kratos架构"
+              "title": "river in go-kratos"
+            }
+          },
+          {
+            "id": "304016327c08d13c",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "dtm in go-zero.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "dtm in go-zero"
             }
           }
         ]
@@ -188,31 +202,32 @@
   },
   "active": "4acfb3985e2548ed",
   "lastOpenFiles": [
+    "River key takeaway.md",
+    "river in go-kratos.md",
+    "go-kratos架构.md",
+    "dtm.md",
+    "Redis.md",
+    "微服务.md",
+    "数据库.md",
+    "dtm in go-zero.md",
+    "消息队列.md",
+    "压测.md",
+    "Index Page.md",
+    "Basic TODO List.md",
     "go-zero key takeaway.md",
     "gozero-sqltx-tracing.md",
-    "Index Page.md",
     "kratos layout.md",
-    "Redis.md",
     "Rust.md",
     "README.md",
     "pitfalls.md",
-    "go-kratos架构.md",
-    "dtm in go-zero.md",
     "可观测性.md",
     "custom-field-query-cache.md",
-    "dtm.md",
-    "数据库.md",
     "custom-http-status-codes.md",
-    "压测.md",
     "dtm containerization.md",
-    "微服务.md",
-    "Basic TODO List.md",
     "2026-05-26.md",
     "dtm.pub.md",
     "Untitled Kanban.md",
     "ecommerce-response-error-handling.md",
-    "创建链接.md",
-    "未命名.base",
-    "欢迎.md"
+    "未命名.base"
   ]
 }
