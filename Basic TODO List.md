@@ -39,10 +39,11 @@ status: seedling
 - [ ] otel 文档
 - [ ] jaeger 基础用法
 - [x] go zero的sqlx with cache的用法
-- [ ] gozerodtm 项目阅读
+- [x] gozerodtm 项目阅读
 - [x] go-zero-mall 项目阅读
 - [ ] Kafka教程
 - [ ] c4 compiler
+- [ ] Github Actions CD
 
 
 
