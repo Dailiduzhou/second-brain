@@ -1,8 +1,6 @@
 [
   "darlal-switcher-plus",
-  "obsidian-vimrc-support",
-  "vimium",
-  "vim-yank-highlight",
   "quickadd",
-  "obsidian-kanban"
+  "obsidian-kanban",
+  "highlightr-plugin"
 ]

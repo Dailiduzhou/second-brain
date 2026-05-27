@@ -189,7 +189,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "obsidian-kanban:创建新看板": false,
+      "obsidian-kanban:Create new board": false,
       "darlal-switcher-plus:Open in Headings Mode": false,
       "darlal-switcher-plus:Open Symbols for the active editor": false,
       "switcher:打开快速切换": false,
