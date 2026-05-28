@@ -149,6 +149,18 @@
         {
           "type": "file",
           "path": "OSS 实现.md"
+        },
+        {
+          "type": "file",
+          "path": "OSS 上传凭证.md"
+        },
+        {
+          "type": "file",
+          "path": "OSS 直传流程.md"
+        },
+        {
+          "type": "file",
+          "path": "OSS 回调处理.md"
         }
       ]
     }

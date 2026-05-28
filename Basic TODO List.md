@@ -44,6 +44,7 @@ status: seedling
 - [ ] Kafka教程
 - [ ] c4 compiler
 - [ ] Github Actions CD
+- [ ] golang-migrate library
 
 
 
