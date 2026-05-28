@@ -45,6 +45,7 @@ status: seedling
 - [ ] c4 compiler
 - [ ] Github Actions CD
 - [ ] golang-migrate library
+- [ ] helm
 
 
 

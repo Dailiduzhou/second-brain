@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Basic TODO List.md",
+                "file": "电商系统整体架构.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Basic TODO List"
+              "title": "电商系统整体架构"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "fram",
+                "query": "userv",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -74,7 +74,8 @@
               "title": "书签"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -188,11 +189,17 @@
   },
   "active": "121098d6849d2252",
   "lastOpenFiles": [
-    "电商系统技术选型.md",
+    "Basic TODO List.md",
+    "kratos layout.md",
     "电商系统整体架构.md",
+    "电商用户模组.md",
+    "电商系统项目进度.md",
+    "电商系统幂等性和细节.md",
+    "电商系统技术选型.md",
+    "电商系统.md",
+    "可观测性.md",
     "数据库.md",
     "微服务.md",
-    "可观测性.md",
     "消息队列.md",
     "custom-field-query-cache.md",
     "dtm containerization.md",
@@ -202,18 +209,12 @@
     "OSS 上传凭证.md",
     "OSS 实现.md",
     "OSS 直传流程.md",
-    "电商系统幂等性和细节.md",
-    "电商系统项目进度.md",
     "压测.md",
     "go-zero key takeaway.md",
     "dtm in go-zero.md",
     "Untitled Kanban.md",
-    "Basic TODO List.md",
-    "电商系统.md",
     "pitfalls.md",
     "README.md",
-    "river in go-kratos.md",
-    "Rust.md",
     "未命名.base"
   ]
 }
