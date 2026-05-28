@@ -1,7 +1,8 @@
 ---
 category: ecommerce
-type: OSS
+type: object-storage
 status: seedling
+tags: ecommerce
 ---
 ## 图片和视频大小校验
 

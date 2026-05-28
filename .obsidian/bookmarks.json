@@ -121,6 +121,36 @@
           "path": "Rust.md"
         }
       ]
+    },
+    {
+      "type": "group",
+      "title": "🛒 电商系统",
+      "items": [
+        {
+          "type": "file",
+          "path": "电商系统.md"
+        },
+        {
+          "type": "file",
+          "path": "电商系统整体架构.md"
+        },
+        {
+          "type": "file",
+          "path": "电商系统技术选型.md"
+        },
+        {
+          "type": "file",
+          "path": "电商系统幂等性和细节.md"
+        },
+        {
+          "type": "file",
+          "path": "电商系统项目进度.md"
+        },
+        {
+          "type": "file",
+          "path": "OSS 实现.md"
+        }
+      ]
     }
   ]
 }
