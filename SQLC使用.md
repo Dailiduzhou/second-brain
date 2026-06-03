@@ -45,3 +45,9 @@ sql:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
 ```
+**简写**：
+```yaml
+overrides:
+          - db_type: "pg_catalog.numeric"
+            go_type: "github.com/shopspring/decimal.Decimal"
+```
