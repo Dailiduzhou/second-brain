@@ -8,6 +8,11 @@ status: seedling
 
 Redis 内存数据结构存储系统。
 
+## 测试
+### golang
+[[miniredis须知]]
+[[Testcontainers-go须知]]
+
 ## 核心主题
 - 数据结构
 - 持久化机制
