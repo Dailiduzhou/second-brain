@@ -46,6 +46,10 @@ status: seedling
 - [ ] Github Actions CD
 - [ ] golang-migrate library
 - [ ] helm
+- [ ] Effective Modern C++
+- [ ] C++ templates
+- [ ] cpp 项目管理
+- [ ] cpp真实HTTP服务器
 
 
 
