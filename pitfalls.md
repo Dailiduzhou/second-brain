@@ -1,8 +1,12 @@
 ---
-category: microsvc
-framework: go-zero
+category: microservice
+frameworks:
+  - go-zero
 topic: pitfalls
 status: seedling
+tags:
+  - microservice/go-zero
+  - pitfalls
 ---
 
 # go-zero 踩坑记录

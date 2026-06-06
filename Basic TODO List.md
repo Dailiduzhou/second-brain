@@ -1,7 +1,9 @@
 ---
-category: todo
-type: list
+category: productivity
+type: checklist
 status: seedling
+tags:
+  - productivity/todo
 ---
 
 # Basic TODO List

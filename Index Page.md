@@ -1,3 +1,10 @@
+---
+category: index
+type: hub
+status: seedling
+tags:
+  - index
+---
 
 ## TODO List
 [[Basic TODO List]]

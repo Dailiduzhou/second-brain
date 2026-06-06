@@ -3,6 +3,9 @@ category: database
 type: cache
 topic: miniredis
 status: seedling
+tags:
+  - database/redis
+  - testing/miniredis
 ---
 ## Lua脚本支持
 对redis 7.0及以上复杂的lua支持不完全。

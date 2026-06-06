@@ -1,9 +1,13 @@
 ---
-category: microsvc
-frameworks: go-kratos
-topic: mq
-type: Riverqueue
+category: microservice
+frameworks:
+  - go-kratos
+topic: riverqueue
+type: message-queue
 status: seedling
+tags:
+  - microservice/go-kratos
+  - message-queue/riverqueue
 ---
 ## River生命周期管理
 

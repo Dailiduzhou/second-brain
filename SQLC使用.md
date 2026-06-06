@@ -1,7 +1,10 @@
 ---
 category: database
 type: tool
+topic: sqlc
 status: seedling
+tags:
+  - database/sqlc
 ---
 ## 类型设计
 存储**金额**等需要固定精度的数值，需要使用`NUMERIC(<进制>,<精度>)`

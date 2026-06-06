@@ -1,7 +1,10 @@
 ---
 category: database
 type: cache
+topic: redis
 status: seedling
+tags:
+  - database/redis
 ---
 
 # Redis

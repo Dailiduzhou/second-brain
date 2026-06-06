@@ -1,7 +1,10 @@
 ---
-category: language
+category: programming-language
 type: systems-lang
+topic: rust
 status: seedling
+tags:
+  - programming-language/rust
 ---
 
 # Rust

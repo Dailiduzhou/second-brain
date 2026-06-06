@@ -1,7 +1,12 @@
 ---
-category: microsvc
-framework: go-kratos
+category: microservice
+frameworks:
+  - go-kratos
+topic: testing
 status: seedling
+tags:
+  - microservice/go-kratos
+  - testing
 ---
 ## 使用SQLC
 参考[[SQLC使用]].

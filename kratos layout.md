@@ -1,8 +1,12 @@
 ---
-category: microsvc
-framework: go-kratos
+category: microservice
+frameworks:
+  - go-kratos
 topic: layout
 status: seedling
+tags:
+  - microservice/go-kratos
+  - architecture/layout
 ---
 
 # kratos 目录结构

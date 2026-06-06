@@ -1,8 +1,11 @@
 ---
 category: ecommerce
 type: object-storage
+topic: oss
 status: seedling
-tags: ecommerce
+tags:
+  - ecommerce
+  - ecommerce/oss
 ---
 # OSS 回调处理
 

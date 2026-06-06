@@ -1,12 +1,16 @@
 ---
-category: microsvc
-framework: go-kratos
+category: microservice
+frameworks:
+  - go-kratos
 topic: architecture
-architect_type:
+architecture_types:
   - monorepo
   - independent
   - integration
 status: seedling
+tags:
+  - microservice/go-kratos
+  - architecture
 ---
 
 # go-kratos 架构

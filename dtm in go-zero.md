@@ -1,8 +1,12 @@
 ---
-category: microsvc
-framework: go-zero
+category: microservice
+frameworks:
+  - go-zero
 topic: dtm
 status: seedling
+tags:
+  - microservice/go-zero
+  - microservice/dtm
 ---
 
 # go-zero 中使用 DTM

@@ -1,8 +1,12 @@
 ---
-category: microsvc
-framework: go-zero
+category: microservice
+frameworks:
+  - go-zero
 topic: summary
 status: seedling
+tags:
+  - microservice/go-zero
+  - summary
 ---
 
 # go-zero 核心要点

@@ -1,11 +1,13 @@
 ---
-category: microsvc
-framework: go-zero
+category: microservice
+frameworks:
+  - go-zero
 topic: observability
 tags:
-  - tracing
-  - sql
-  - dtm
+  - microservice/go-zero
+  - observability/tracing
+  - database/sql
+  - microservice/dtm
   - opentelemetry
 status: seedling
 ---

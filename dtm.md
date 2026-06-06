@@ -1,8 +1,11 @@
 ---
-category: microsvc
+category: microservice
 topic: dtm
 type: distributed-transaction
 status: seedling
+tags:
+  - microservice/dtm
+  - distributed-transaction
 ---
 
 # DTM 分布式事务

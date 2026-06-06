@@ -1,8 +1,11 @@
 ---
-category: database
-type: cache
-topic: testcontainer
+category: testing
+type: tool
+topic: testcontainers-go
 status: seedling
+tags:
+  - testing/testcontainers-go
+  - golang
 ---
 ## 概念
 会在`go test`运行时，短暂的拉起特定版本的redis进行测试。

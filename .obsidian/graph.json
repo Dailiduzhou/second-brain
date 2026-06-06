@@ -15,7 +15,7 @@
       }
     },
     {
-      "query": "[\"framework\":go-zero]",
+      "query": "[\"frameworks\":go-zero]",
       "color": {
         "a": 1,
         "rgb": 2674204
@@ -32,6 +32,6 @@
   "repelStrength": 10,
   "linkStrength": 1,
   "linkDistance": 250,
-  "scale": 1.537818539874378,
+  "scale": 2.155995292786889,
   "close": true
 }

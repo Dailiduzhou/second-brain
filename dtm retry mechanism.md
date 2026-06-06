@@ -1,8 +1,11 @@
 ---
-category: microsvc
+category: microservice
 topic: dtm
 type: mechanism
 status: seedling
+tags:
+  - microservice/dtm
+  - reliability/retry
 ---
 ## HTTP状态码和dtm重试的关联
 

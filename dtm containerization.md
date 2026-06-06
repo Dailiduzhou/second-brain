@@ -1,8 +1,11 @@
 ---
-category: microsvc
+category: microservice
 topic: dtm
 type: deployment
 status: seedling
+tags:
+  - microservice/dtm
+  - deployment/containerization
 ---
 
 # DTM 容器化部署

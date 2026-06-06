@@ -1,8 +1,12 @@
 ---
-category: microsvc
-framework: go-zero
+category: microservice
+frameworks:
+  - go-zero
 topic: http
 status: seedling
+tags:
+  - microservice/go-zero
+  - microservice/http
 ---
 
 # 自定义 HTTP 状态码

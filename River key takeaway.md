@@ -1,7 +1,11 @@
 ---
-category: mq
-type: Riverqueue
+category: message-queue
+type: summary
+topic: riverqueue
 status: done
+tags:
+  - message-queue/riverqueue
+  - summary
 ---
 **River** 是 Go 语言中一个非常强大且高性能的后台任务队列（Job Queue）。它的最大特点是**基于 PostgreSQL** 构建，并深度利用了 Postgres 的特性（如 `LISTEN/NOTIFY` 和行级锁），这使得它能够提供极高的吞吐量和可靠性，尤其是它原生支持**事务性入队（Transactional Enqueuing）**，完美解决了业务数据写入和任务下发的一致性问题（即原生实现了 Outbox 模式）。
 下面我们来拆解 River 的核心概念，以及如何将它们配合起来使用。

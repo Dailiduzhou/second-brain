@@ -1,8 +1,12 @@
 ---
-category: microsvc
-framework: go-zero
+category: microservice
+frameworks:
+  - go-zero
 topic: caching
 status: seedling
+tags:
+  - microservice/go-zero
+  - microservice/caching
 ---
 
 # 自定义字段查询缓存
