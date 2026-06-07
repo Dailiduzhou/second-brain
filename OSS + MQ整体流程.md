@@ -9,6 +9,21 @@ tags:
 ---
 结合你的技术栈，要完美解决**异步落库、上传失败检测、保证落库正常工作**，核心设计思想是：**“积极入库、延迟检查、依靠队列重试机制保障最终一致性”**。
 
+抽象的存储接口（Provider-agnostic)
+```go
+package biz
+
+import "context"
+
+// OSSProvider 统一的对象存储接口
+type OSSProvider interface {
+    // 获取前端直传的预签名 URL
+    GetUploadToken(ctx context.Context, filename string) (string, error)
+    // 验证云厂商的回调签名是否合法
+    VerifyCallbackSignature(req *http.Request) (bool, error)
+}
+```
+
 ### 一、 核心架构设计与时序
 整个流程分为三个核心阶段，通过 River MQ 的**立即任务**和延迟任务（Delayed Job）来驱动：
 

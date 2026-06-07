@@ -30,13 +30,19 @@ tags:
 - [x] go-kratos的k8s部署
 - [ ] atlas基础使用方法
 - [ ] watermill 的redis stream封装使用方法
-- [ ] 微信支付开发流程
+- [x] 微信支付开发流程
+- [ ] 微信支付 prepay
+- [ ] 微信支付 jsapi
+- [ ] 微信支付 回调(callback)
+- [ ] 微信支付相关的 MQ
 - [x] Redis实现数据一致性的标记删除方案
 - [x] Redis内置数据结构深入
 - [ ] redis stream了解
 - [ ] go reqwest了解
 - [ ] grafana k6教程
 - [x] 令牌桶限流
+- [ ] 限流中间件
+- [ ] 限流服务降级策略
 - [x] grafana loki 在go-kratos
 - [ ] otel 文档
 - [ ] jaeger 基础用法
@@ -52,6 +58,9 @@ tags:
 - [ ] C++ templates
 - [ ] cpp 项目管理
 - [ ] cpp真实HTTP服务器
+- [ ] OSS 全链路
+- [ ] 阿里云OSS SDK的使用
+- [ ] minIO的使用
 
 
 
