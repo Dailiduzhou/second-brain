@@ -55,10 +55,12 @@ tags:
 - [ ] golang-migrate library
 - [ ] helm
 - [ ] Effective Modern C++
+- [ ] C++ 并发API深入
+- [ ] C++17 的回调写法
 - [ ] C++ templates
 - [ ] cpp 项目管理
 - [ ] cpp真实HTTP服务器
-- [ ] OSS 全链路
+- [ ] OSS 全链路流程
 - [ ] 阿里云OSS SDK的使用
 - [ ] minIO的使用
 
