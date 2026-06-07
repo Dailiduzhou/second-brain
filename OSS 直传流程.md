@@ -4,29 +4,60 @@ type: object-storage
 topic: oss
 status: seedling
 tags:
-  - ecommerce
   - ecommerce/oss
 ---
+
 # OSS 直传流程
 
-配合 go-kratos 实现前端直接上传到 OSS，不经过后端服务器。
+前端直传指文件直接从浏览器上传到对象存储，Kratos 只参与凭证签发、回调接收和业务状态维护。
 
-## 需要的 API 接口
+## API
 
-1. **获取凭证接口** `GET /v1/oss/upload-token` — 前端获取上传凭证
-2. **OSS 回调接口** `POST /v1/oss/callback` — OSS 通知上传结果
+| 接口 | 调用方 | 作用 |
+|------|--------|------|
+| `GET /v1/oss/upload-token` | 前端 | 获取上传凭证、对象 Key 和过期时间 |
+| `POST /v1/oss/callback` | OSS | 通知后端文件已上传成功 |
 
-## 完整交互步骤
+## 交互步骤
 
-1. **前端请求凭证：** 用户选择文件后，调用 Kratos 接口 `GET /v1/oss/upload-token`
-2. **Kratos 下发凭证：** Kratos 调用 OSS SDK 生成带有过期时间（15 分钟）和大小限制的 PostPolicy 及签名，返回给前端
-3. **前端直接上传：** 前端携带文件实体和签名，直接发起 POST 请求到 OSS 的公网/内网 Endpoint
-4. **OSS 回调：** OSS 接收文件成功后，主动向 Kratos 服务器发起 POST 请求（回调地址在步骤 2 中指定）
-5. **Kratos 确认回调：** Kratos 收到回调请求，校验签名，将业务数据写入数据库，返回 `{"Status":"OK"}`
-6. **前端获取结果：** OSS 收到确认后，将 HTTP 200 返回给前端，前端提示上传成功
+1. 用户选择文件，前端先做大小和类型校验。
+2. 前端调用 `GET /v1/oss/upload-token`。
+3. Kratos 生成受限 PostPolicy，必要时预创建 `pending` 媒体记录。
+4. Kratos 返回上传地址、对象 Key、过期时间和表单字段。
+5. 前端使用 `multipart/form-data` 直接 POST 到 OSS。
+6. OSS 保存对象后请求 `/v1/oss/callback`。
+7. Kratos 校验回调签名并投递异步落库任务。
+8. Kratos 返回 OSS 期望的成功响应。
+9. 前端根据上传请求结果展示预览，并可轮询或查询后端确认业务状态。
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant API as Kratos
+    participant OSS as OSS
+    participant DB as PostgreSQL
+    participant MQ as River
+
+    FE->>API: GET /v1/oss/upload-token
+    API->>DB: create media(status=pending)
+    API-->>FE: post policy + object_key
+    FE->>OSS: POST file + policy
+    OSS->>API: POST /v1/oss/callback
+    API->>MQ: enqueue ProcessOssCallback
+    API-->>OSS: {"Status":"OK"}
+    MQ->>DB: mark media active
+```
+
+## 注意点
+
+- 回调接口必须公网可达，且不能被 JWT 中间件拦截。
+- 前端不能把“拿到凭证”当成上传成功。
+- OSS 回调可能重复到达，落库逻辑必须幂等。
+- 本地 MinIO 的回调语义与阿里云 OSS 不完全一致，见 [[OSS 回调语义差异]]。
 
 ## 相关链接
 
 - [[OSS 实现]]
 - [[OSS 上传凭证]]
 - [[OSS 回调处理]]
+- [[OSS + MQ整体流程]]

@@ -2,189 +2,185 @@
 category: ecommerce
 type: object-storage
 topic: oss
-status:
+frameworks:
+  - go-kratos
+  - riverqueue
+status: seedling
 tags:
-  - ecommerce
   - ecommerce/oss
+  - message-queue/riverqueue
 ---
-结合你的技术栈，要完美解决**异步落库、上传失败检测、保证落库正常工作**，核心设计思想是：**“积极入库、延迟检查、依靠队列重试机制保障最终一致性”**。
 
-抽象的存储接口（Provider-agnostic)
-```go
-package biz
+# OSS + MQ整体流程
 
-import "context"
+OSS 上传落库适合采用“预创建记录、快速确认回调、队列异步落库、延迟任务兜底”的模式。核心目标是让 OSS 回调尽快返回，同时用 River 的事务性入队和重试机制保证最终一致性。
 
-// OSSProvider 统一的对象存储接口
-type OSSProvider interface {
-    // 获取前端直传的预签名 URL
-    GetUploadToken(ctx context.Context, filename string) (string, error)
-    // 验证云厂商的回调签名是否合法
-    VerifyCallbackSignature(req *http.Request) (bool, error)
-}
+## 状态模型
+
+| 状态 | 含义 |
+|------|------|
+| `pending` | 已发放上传凭证，等待前端上传或 OSS 回调 |
+| `active` | OSS 已确认上传，媒体记录可被业务使用 |
+| `failed` | 超时未完成或确认失败 |
+| `deleted` | 已被业务或清理任务删除 |
+
+## 三阶段流程
+
+### 1. 申请 Token
+
+```text
+前端 -> Kratos: 申请上传凭证
+Kratos -> PostgreSQL:
+  - 创建 media(status=pending)
+  - 事务性投递延迟任务 CheckUploadTimeout
+Kratos -> 前端: 返回 token、object_key、media_id
 ```
 
-### 一、 核心架构设计与时序
-整个流程分为三个核心阶段，通过 River MQ 的**立即任务**和延迟任务（Delayed Job）来驱动：
+### 2. OSS 回调
 
-```
-阶段 1: 申请 Token (埋下暗线)
-前端 -> Kratos: 申请上传凭证 
-Kratos -> 开启 PG 事务:
-   ├── 写入一条“上传中”的媒体存根记录到 DB
-   └── 投递一个【延迟15分钟】的 River 检查任务 (CheckUploadTimeout)
-Kratos -> 前端: 返回 Token & 业务ID
-
-阶段 2: OSS 回调 (异步解耦)
-前端 -> OSS: 携带 Token 直传文件
-OSS -> Kratos: 发起回调 (Webhook)
-Kratos -> 开启 PG 事务:
-   ├── 投递一个【立即执行】的落库任务 (ProcessOssCallback)
-   └── 提交事务，瞬间向 OSS 返回 {"Status":"OK"} (不等待真正落库，防止OSS超时)
-
-阶段 3: 队列异步消费 (最终落地)
-River Worker -> 执行 ProcessOssCallback 任务:
-   └── 更新 DB 媒体记录为“已完成”，并绑定商品
-River Worker -> 15分钟后执行 CheckUploadTimeout 任务:
-   └── 检查 DB，若状态仍为“上传中”，说明前端失败或放弃。触发失败处理逻辑。
-
+```text
+前端 -> OSS: 直传文件
+OSS -> Kratos: 回调上传结果
+Kratos -> River:
+  - 验签
+  - 事务性投递立即任务 ProcessOssCallback
+Kratos -> OSS: 快速返回 {"Status":"OK"}
 ```
 
-### 二、 Go-Kratos + River MQ 核心代码实现
+### 3. Worker 落库
 
-#### 1. 定义 River MQ 任务结构体（Args）
-在 Go 中，River 要求任务参数实现 `river.JobArgs` 接口：
+```text
+River Worker -> PostgreSQL:
+  - 根据 media_id 或 object_key 查询记录
+  - 幂等更新为 active
+  - 绑定商品、用户或业务上下文
+延迟 Worker:
+  - 15 分钟后检查仍为 pending 的记录
+  - 标记 failed，并触发对象清理
+```
+
+## River Job Args
 
 ```go
 package jobs
 
-import "context"
-
-// ProcessOssCallbackArgs 立即执行：处理OSS回调落库
 type ProcessOssCallbackArgs struct {
-	ObjectKey string `json:"object_key"`
-	GoodsID   string `json:"goods_id"`
-	Size      int64  `json:"size"`
+    MediaID   string `json:"media_id"`
+    ObjectKey string `json:"object_key"`
+    GoodsID   string `json:"goods_id"`
+    Size      int64  `json:"size"`
 }
-func (ProcessOssCallbackArgs) Kind() string { return "oss.callback.process" }
 
-// CheckUploadTimeoutArgs 延迟执行：检测上传是否超时失败
+func (ProcessOssCallbackArgs) Kind() string {
+    return "oss.callback.process"
+}
+
 type CheckUploadTimeoutArgs struct {
-	ObjectKey string `json:"object_key"`
-	GoodsID   string `json:"goods_id"`
+    MediaID   string `json:"media_id"`
+    ObjectKey string `json:"object_key"`
 }
-func (CheckUploadTimeoutArgs) Kind() string { return "oss.upload.timeout_check" }
 
+func (CheckUploadTimeoutArgs) Kind() string {
+    return "oss.upload.timeout_check"
+}
 ```
 
-#### 2. Kratos 接口层：处理 OSS 回调并投递异步任务
-在 Kratos 的 Raw Route 回调接口中，我们只做两件事：**验签**、**利用事务投递 River 任务并返回**。
+## 回调内只投递任务
 
 ```go
 func (h *OssCallbackHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	// ... 省略验签与 Body 解析逻辑 (得到 callbackData) ...
+    // 省略验签与解析，得到 callbackData。
 
-	// 开启 Postgres 事务
-	ctx := r.Context()
-	tx, err := h.db.Begin(ctx) // h.db 为 *jackc/pgx/v5 
-	if err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
-		return
-	}
-	defer tx.Rollback(ctx)
+    ctx := r.Context()
+    tx, err := h.db.Begin(ctx)
+    if err != nil {
+        http.Error(w, "Internal Error", http.StatusInternalServerError)
+        return
+    }
+    defer tx.Rollback(ctx)
 
-	// 使用同一个事务，向 River MQ 投递异步落库任务
-	_, err = h.riverClient.InsertTx(ctx, tx, jobs.ProcessOssCallbackArgs{
-		ObjectKey: callbackData.ObjectKey,
-		GoodsID:   callbackData.GoodsID,
-		Size:      callbackData.Size,
-	}, nil)
-	if err != nil {
-		h.log.Errorf("投递异步落库任务失败: %v", err)
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
-		return
-	}
+    _, err = h.riverClient.InsertTx(ctx, tx, jobs.ProcessOssCallbackArgs{
+        MediaID:   callbackData.MediaID,
+        ObjectKey: callbackData.ObjectKey,
+        GoodsID:   callbackData.GoodsID,
+        Size:      callbackData.Size,
+    }, nil)
+    if err != nil {
+        http.Error(w, "Internal Error", http.StatusInternalServerError)
+        return
+    }
 
-	// 提交事务：DB 记录和队列任务同时成功
-	if err := tx.Commit(ctx); err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
-		return
-	}
+    if err := tx.Commit(ctx); err != nil {
+        http.Error(w, "Internal Error", http.StatusInternalServerError)
+        return
+    }
 
-	// 瞬间响应 OSS，耗时极短 (<20ms)，绝不超时
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"Status":"OK"}`))
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    _, _ = w.Write([]byte(`{"Status":"OK"}`))
 }
-
 ```
 
-#### 3. Worker 消费层：实现异步落库与超时检测
-编写 Worker 来具体执行队列中的任务。
+## Worker 幂等落库
 
 ```go
-// OssCallbackWorker 处理真正的业务落库
 type OssCallbackWorker struct {
-	river.WorkerDefaults[jobs.ProcessOssCallbackArgs]
-	repo *biz.ProductRepo
+    river.WorkerDefaults[jobs.ProcessOssCallbackArgs]
+    repo *biz.MediaRepo
 }
 
 func (w *OssCallbackWorker) Work(ctx context.Context, job *river.Job[jobs.ProcessOssCallbackArgs]) error {
-	args := job.Args
-	
-	// 1. 保证幂等性：去数据库查一下这个 ObjectKey 是否已经处理过了
-	media, err := w.repo.FindByKey(ctx, args.ObjectKey)
-	if err == nil && media.Status == biz.StatusActive {
-		return nil // 已经处理成功，直接返回（幂等成功）
-	}
+    args := job.Args
 
-	// 2. 真正的落库业务：更新状态为“可用”，并绑定到商品
-	err = w.repo.CompleteAndBindMedia(ctx, args.GoodsID, args.ObjectKey, args.Size)
-	if err != nil {
-		// 返回错误，River MQ 会自动触发指数退避重试 (Exponential Backoff)
-		return err 
-	}
-	return nil
+    media, err := w.repo.FindByID(ctx, args.MediaID)
+    if err != nil {
+        return err
+    }
+    if media.Status == biz.MediaStatusActive {
+        return nil
+    }
+
+    return w.repo.CompleteUpload(ctx, args.MediaID, args.ObjectKey, args.Size)
 }
+```
 
-// TimeoutCheckWorker 处理超时检测
+## 超时检测
+
+```go
 type TimeoutCheckWorker struct {
-	river.WorkerDefaults[jobs.CheckUploadTimeoutArgs]
-	repo *biz.ProductRepo
-	ossClient *oss.Client
+    river.WorkerDefaults[jobs.CheckUploadTimeoutArgs]
+    repo      *biz.MediaRepo
+    ossClient biz.OSSProvider
 }
 
 func (w *TimeoutCheckWorker) Work(ctx context.Context, job *river.Job[jobs.CheckUploadTimeoutArgs]) error {
-	args := job.Args
-	
-	media, err := w.repo.FindByKey(ctx, args.ObjectKey)
-	if err != nil {
-		return nil // 没找到记录，可能被其他业务清理了
-	}
+    args := job.Args
 
-	// 如果15分钟后，状态依然是 "Pending"（上传中），说明前端上传失败了、或者用户直接关闭了网页
-	if media.Status == biz.StatusPending {
-		// 1. 将数据库中的存根状态改为 "Failed" (上传失败)
-		_ = w.repo.UpdateStatus(ctx, args.ObjectKey, biz.StatusFailed)
-		
-		// 2. 异步清理：调用 OSS SDK 彻底删除 OSS 上的这个孤儿文件（防止万一前端传了一半）
-		_ = w.ossClient.DeleteObject(args.ObjectKey)
-	}
-	return nil
+    media, err := w.repo.FindByID(ctx, args.MediaID)
+    if err != nil {
+        return nil
+    }
+    if media.Status != biz.MediaStatusPending {
+        return nil
+    }
+
+    if err := w.repo.MarkFailed(ctx, args.MediaID); err != nil {
+        return err
+    }
+    return w.ossClient.DeleteObject(ctx, args.ObjectKey)
 }
-
 ```
 
-### 三、 深度探索：River MQ 与 Postgres 状态流转
-为了让你彻底看清在**正常上传、网络抖动、用户流产、数据库故障**等各种极端情况下，PostgreSQL 的数据状态与 River MQ 的任务队列是如何交织演进、自我修复的，你可以通过下方的**分布式状态模拟器**进行直观演练：
+## 高可用要点
 
-### 四、 如何百分之百保证落库正常工作？（避坑与高可用防线）
+- River Worker 返回 `error` 时会重试，落库代码必须幂等。
+- 队列入队和业务数据变更尽量放进同一个 PostgreSQL 事务。
+- 多实例消费依赖 River 的锁机制，业务层仍需用唯一索引约束 `media_id` 或 `object_key`。
+- 部署时先停止 HTTP 接入，再停止 River Worker，避免正在执行的任务被中断。
 
-1. **River MQ 的最大救星：自动重试**
-如果你的数据库发生短暂死锁、网络连接满，Worker 在执行 `Work()` 时返回 `err`，River 会根据默认规则自动进行 **指数退避重试（比如：1秒后、2秒后、4秒后...重试）**。这消除了瞬时抖动带来的业务失败。
-2. **核心红线：强幂等设计**
-由于 River 会重试，或者 OSS 回调可能会由于网络原因发送多次，`OssCallbackWorker` 内部更新数据库时，**绝对不能盲目 UPDATE**。必须先校验当前状态，如果是 `Active`，直接返回 `nil` 宣告成功。
-3. **优雅停机（Graceful Shutdown）**
-当你的 Kratos 实例因为部署新版本需要重启时，正在执行落库的 Worker 不能被强行杀死。在 Kratos 的 `main.go` 中关停服务时，务必**先关闭 HTTP/gRPC 网关，再调用 riverClient.Stop()**。River 会等待当前正在运行的作业完成（默认有超时保护）再退出，防止落库任务断在线上。
-4. **River 的 SKIP LOCKED 性能保障**
-很多传统的 PG 队列会因为大量的 `SELECT ... FOR UPDATE` 导致锁表，而 River MQ 底层充分利用了 Postgres 的 `FOR UPDATE SKIP LOCKED` 特性。这使得你可以部署多个 Kratos 节点作为 Worker 抢占式消费落库任务，横向扩展能力极强，完全能够撑住大促期间的并发上传落库。
+## 相关链接
+
+- [[OSS 实现]]
+- [[OSS 回调处理]]
+- [[River key takeaway]]
+- [[电商系统幂等性和细节]]
