@@ -54,3 +54,34 @@ overrides:
           - db_type: "pg_catalog.numeric"
             go_type: "github.com/shopspring/decimal.Decimal"
 ```
+
+## 改造事务和context
+```go
+// 改造事务管理器：不仅注入 sqlc，也暴露原生的 tx 供 River 使用
+type txKey struct{}
+type rawTxKey struct{} // 新增一个 key 存放 *sql.Tx
+
+func (t *transaction) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	tx, _ := t.data.db.BeginTx(ctx, nil)
+	defer tx.Rollback()
+
+	// 将 sqlc 和原生 tx 都放进 context
+	ctx = context.WithValue(ctx, txKey{}, t.data.q.WithTx(tx))
+	ctx = context.WithValue(ctx, rawTxKey{}, tx)
+
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// 获取原生 tx 的辅助方法
+func (d *Data) getRawTx(ctx context.Context) *sql.Tx {
+	if tx, ok := ctx.Value(rawTxKey{}).(*sql.Tx); ok {
+		return tx
+	}
+	return nil // 实际项目需处理非事务情况
+}
+```
+
+可以提供原生`Tx` 给`River` 和手写的 sqlc 事务使用。
