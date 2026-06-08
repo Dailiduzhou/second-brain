@@ -63,6 +63,7 @@ tags:
 - [ ] OSS 全链路流程
 - [ ] 阿里云OSS SDK的使用
 - [ ] minIO的使用
+- [ ] gopay 文档
 
 
 
