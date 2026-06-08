@@ -56,32 +56,15 @@ overrides:
 ```
 
 ## 改造事务和context
-```go
-// 改造事务管理器：不仅注入 sqlc，也暴露原生的 tx 供 River 使用
-type txKey struct{}
-type rawTxKey struct{} // 新增一个 key 存放 *sql.Tx
+当前项目使用 `pgx/v5`，事务管理整理到：
 
-func (t *transaction) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	tx, _ := t.data.db.BeginTx(ctx, nil)
-	defer tx.Rollback()
+- [[Kratos SQLC pgx 事务管理]]
+- [[SQLC CRUD 事务边界]]
+- [[River pgx 事务入队]]
 
-	// 将 sqlc 和原生 tx 都放进 context
-	ctx = context.WithValue(ctx, txKey{}, t.data.q.WithTx(tx))
-	ctx = context.WithValue(ctx, rawTxKey{}, tx)
+核心原则：Repo 层统一通过 `Data.DB(ctx)` 获取 sqlc `Queries`，Biz 层只在跨表、状态机或 River Outbox 场景中开启 `Transaction.InTx`。
 
-	if err := fn(ctx); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
+## 相关链接
 
-// 获取原生 tx 的辅助方法
-func (d *Data) getRawTx(ctx context.Context) *sql.Tx {
-	if tx, ok := ctx.Value(rawTxKey{}).(*sql.Tx); ok {
-		return tx
-	}
-	return nil // 实际项目需处理非事务情况
-}
-```
-
-可以提供原生`Tx` 给`River` 和手写的 sqlc 事务使用。
+- [[Go-Kratos,-SQLC,-River-MQ-Transactions]]
+- [[PostgreSQL 软删除实践]]
