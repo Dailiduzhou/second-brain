@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "订单号唯一字段规范.md",
+                "file": "支付查单与 River 兜底.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "订单号唯一字段规范"
+              "title": "支付查单与 River 兜底"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "index",
+                "query": "异步",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -188,15 +188,16 @@
   },
   "active": "fe91ccfb352defaa",
   "lastOpenFiles": [
-    "雪花 ID 生成器.md",
-    "压测.md",
-    "订单号唯一字段规范.md",
-    "项目唯一字段和业务流程.md",
-    "IDGenerator 抽象接口.md",
-    "Go-Kratos-支付系统集成指南.md",
-    "支付查单与 River 兜底.md",
     "支付回调处理.md",
     "支付通道 Adapter 设计.md",
+    "支付系统分层设计.md",
+    "Go-Kratos-支付系统集成指南.md",
+    "订单号唯一字段规范.md",
+    "雪花 ID 生成器.md",
+    "压测.md",
+    "项目唯一字段和业务流程.md",
+    "IDGenerator 抽象接口.md",
+    "支付查单与 River 兜底.md",
     "电商系统整体架构.md",
     "电商用户模组.md",
     "可观测性.md",
@@ -211,7 +212,6 @@
     "gopay xlog Kratos 日志桥接.md",
     "Wechat Pay gopay 适配器.md",
     "Alipay gopay 适配器.md",
-    "支付系统分层设计.md",
     "River pgx 事务入队.md",
     "River key takeaway.md",
     "未命名.base"
