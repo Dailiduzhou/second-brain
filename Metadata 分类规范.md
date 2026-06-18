@@ -28,6 +28,7 @@ tags:
 - `database`：数据库、缓存、SQL 工具等。
 - `message-queue`：消息队列与异步任务系统。
 - `ecommerce`：电商系统与业务模块。
+- `ccnubox`：华师匣子（ECNU Box）校园小程序后端项目。
 - `testing`：测试工具与测试实践。
 - `programming-language`：编程语言。
 - `productivity`：任务清单与个人效率。
