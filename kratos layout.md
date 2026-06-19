@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: layout
 frameworks:
   - go-kratos
 topic: layout

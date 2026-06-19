@@ -1,36 +1,23 @@
 ---
 category: microservice
+type: deep-dive
+topic: sqltx-tracing
 frameworks:
   - go-zero
-topic: observability
+  - opentelemetry
+module: product-rpc
+status: seedling
 tags:
   - microservice/go-zero
   - observability/tracing
   - database/sql
   - microservice/dtm
   - opentelemetry
-status: seedling
 ---
 
 # Go-Zero 中 sql.Tx 与 Tracing 的深度解析与实战指南
 
-## 一句话总结
-
-标准库的 `sql.Tx` 不会自动进入 go-zero 的 tracing 链路，但你能通过正确的方式让它工作——关键在于理解接口边界和选择合适的封装策略。
-
----
-
-## 目录
-
-- [问题背景：一道真实的代码审查](#问题背景一道真实的代码审查)
-- [Tracing 链路如何断裂](#tracing-链路如何断裂)
-- [四种解决方案的深度对比](#四种解决方案的深度对比)
-- [实战方案：为 DTM 场景补齐 Tracing](#实战方案为-dtm-场景补齐-tracing)
-- [完整的 Trace 示例与输出解读](#完整的-trace-示例与输出解读)
-- [性能与资源权衡](#性能与资源权衡)
-- [总结：选型建议与注意事项](#总结选型建议与注意事项)
-
----
+> 标准库的 `sql.Tx` 不会自动进入 go-zero 的 tracing 链路，但你能通过正确的方式让它工作——关键在于理解接口边界和选择合适的封装策略。
 
 ## 问题背景：一道真实的代码审查
 
@@ -317,10 +304,6 @@ func (m *customProductModel) TxAdjustStockWithTrace(ctx context.Context, tx *sql
             attribute.Int("biz.delta", delta),
             attribute.String("biz.operation", "decrement"),
         )
-    }
-    
-    otelsql.TraceQuery(query string) func(ctx context.Context, id string, query string, args []driver.NamedValue) (context.Context, []driver.NamedValue){
-        return otelsql.traceQuery(query)
     }
     // 执行 SQL（otelsql 会自动创建 SQL span）
     query := "update product set stock=stock+? where stock >= -? and id=?"
@@ -673,5 +656,10 @@ service/product/rpc/
 
 ---
 
-**文档版本**: 1.0  
-**适用 go-zero 版本**: 1.3.x - 1.6.x
+## 跨主题链接
+
+- [[dtm in go-zero]] — go-zero 中集成 DTM 的事务屏障与连接复用
+- [[dtm]] — DTM 分布式事务总览
+- [[go-zero key takeaway]] — go-zero 框架核心要点
+- [[可观测性]] — 微服务可观测性三大支柱
+- [[pitfalls]] — go-zero 踩坑记录

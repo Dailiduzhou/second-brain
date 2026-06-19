@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: summary
 frameworks:
   - go-zero
 topic: summary

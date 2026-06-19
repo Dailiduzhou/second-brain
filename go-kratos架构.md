@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: architecture
 frameworks:
   - go-kratos
 topic: architecture

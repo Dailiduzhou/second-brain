@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: integration
 frameworks:
   - go-zero
 topic: dtm
@@ -12,8 +13,6 @@ tags:
 # go-zero 中使用 DTM
 
 在 go-zero 框架中集成 DTM 分布式事务。
-#microsvc/go-kratos/dtm
-#dtm/go-zero
 
 ## 事务屏障和连接复用
 

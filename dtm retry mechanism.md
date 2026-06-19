@@ -7,7 +7,8 @@ tags:
   - microservice/dtm
   - reliability/retry
 ---
-## HTTP状态码和dtm重试的关联
+
+# DTM 重试机制
 
 DTM 通过 `HTTPResp2DtmError`（`client/dtmcli/utils.go`）将 HTTP 响应映射为三种结果：
 
@@ -127,3 +128,8 @@ if t.TransType == "saga" && branch.Op == OpAction && errors.Is(err, ErrFailure) 
 }
 return "", fmt.Errorf("unkown result will be retried: %w", err)  // 其他 → 退避重试
 ```
+
+## 跨主题链接
+
+- [[dtm]] — DTM 分布式事务总览
+- [[dtm in go-zero]] — go-zero 中集成 DTM 的事务屏障

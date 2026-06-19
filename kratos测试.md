@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: testing
 frameworks:
   - go-kratos
 topic: testing
@@ -8,7 +9,8 @@ tags:
   - microservice/go-kratos
   - testing
 ---
-## 使用SQLC
+
+# Kratos 测试
 参考[[SQLC使用]].
 1. 配置`sqlc.yaml` ，让sqlc生成接口文件。
 ```yaml
@@ -82,3 +84,9 @@ func TestRedisCache_SetAndGet(t *testing.T) {
 ```
 如果需要更接近真实的redis行为，可以使用[testcontainer](github.com/testcontainers/testcontainers-go) 
 [[Testcontainers-go须知]]
+
+## 跨主题链接
+
+- [[go-kratos架构]] — go-kratos 整体架构
+- [[kratos layout]] — go-kratos 项目目录结构
+- [[SQLC使用]] — SQLC 使用指南

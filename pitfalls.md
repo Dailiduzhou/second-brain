@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: pitfalls
 frameworks:
   - go-zero
 topic: pitfalls

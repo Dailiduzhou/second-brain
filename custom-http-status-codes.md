@@ -1,5 +1,6 @@
 ---
 category: microservice
+type: deep-dive
 frameworks:
   - go-zero
 topic: http
