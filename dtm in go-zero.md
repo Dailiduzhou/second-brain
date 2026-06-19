@@ -95,3 +95,4 @@ func (l *CreateLogic) Create(in *order.CreateRequest) (*order.CreateResponse, er
 ## 相关链接
 - [[dtm]]
 - [[微服务]]
+- [[gozero-sqltx-tracing]] — sql.Tx 与 Tracing 链路断裂问题及 otelsql 修复方案

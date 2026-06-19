@@ -18,6 +18,7 @@ tags:
 - [[dtm in go-zero]]
 - [[dtm containerization]]
 - [[dtm retry mechanism]]
+- [[gozero-sqltx-tracing]] — sql.Tx 与 Tracing 链路问题
 
 ## 相关链接
 - [[微服务]]
