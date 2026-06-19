@@ -162,6 +162,10 @@ go func() {
 3. `web/types.go`、`middleware`：看统一响应和鉴权模型
 4. `web/content`、`web/grade` 等具体模块：看 handler 如何调用下游服务
 
+## 代码风险观察和修复建议
+
+1. [[BFF 取gRPC结构体字段风险报告]] 
+
 ## 跨主题链接
 
 - [[华师匣子]] — 项目总览
