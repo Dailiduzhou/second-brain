@@ -614,4 +614,5 @@ func (h *UserHandler) DeleteAccount(ctx *gin.Context, req DeleteAccountReq, cla 
 - [[华师匣子BFF结构]] — BFF 整体架构与代码分层
 - [[BFF 取gRPC结构体字段风险报告]] — BFF gRPC 返回值空指针风险
 - [[BFF JWT 中存储加密密码的安全性分析]] — 密码嵌入 JWT 的链路分析与修复路径
+- [[BFF AES加密优化]] — cipher.AEAD 缓存优化（与本报告问题三相关）
 - [[华师匣子]] — 项目总览
