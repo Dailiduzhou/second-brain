@@ -1,0 +1,11 @@
+# Obsidian session state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# Obsidian caches and snapshots
+.obsidian/cache/
+.obsidian/snapshots/
+
+# Cross-platform OS noise
+.DS_Store
+Thumbs.db
