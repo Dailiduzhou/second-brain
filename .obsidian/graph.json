@@ -27,6 +27,13 @@
         "a": 1,
         "rgb": 8076463
       }
+    },
+    {
+      "query": "tag:#programming-language/rust  ",
+      "color": {
+        "a": 1,
+        "rgb": 15500901
+      }
     }
   ],
   "collapse-display": true,
@@ -39,6 +46,6 @@
   "repelStrength": 10,
   "linkStrength": 1,
   "linkDistance": 250,
-  "scale": 0.7823834600252287,
+  "scale": 0.7823834600252284,
   "close": true
 }
