@@ -7,10 +7,17 @@ frameworks:
 module: bff
 status: seedling
 tags:
-  - ccnubox
   - ccnubox/bff
   - ccnubox/bff/middleware
+  - middleware
+  - error-handling
+  - gin
+aliases:
+  - 中间件错误处理
+  - BFF错误处理
 ---
+
+# BFF 中间件错误处理
 ## `Gin`标准的错误处理
 
 如果某个中间件发生错误，为了正常退出，并给出必要的响应，需要三步：
@@ -216,3 +223,93 @@ func (lm *LoggerMiddleware) handleResponse(ctx *gin.Context) (web.Response, int)
 
 这段代码还暴露了一些设计问题:
 - [[BFF logger中间件的问题]]
+
+## 错误处理流程图
+
+```mermaid
+graph TD
+    A[请求进入] --> B[CORS 前置]
+    B --> C[Prometheus 前置]
+    C --> D[OTel 前置]
+    D --> E[Logger 前置]
+    E --> F[Handler]
+    F --> G{是否有错误?}
+    G -->|是| H[记录错误到 ctx.Errors]
+    G -->|否| I[正常响应]
+    H --> J[Logger 后置处理]
+    J --> K[统一错误响应]
+    I --> L[正常响应]
+    
+    style A fill:#e1f5fe
+    style G fill:#fff3e0
+    style H fill:#ffebee
+    style I fill:#e8f5e8
+```
+
+## 最佳实践
+
+### 1. 错误处理原则
+
+> [!tip] 错误处理核心原则
+> - **单一职责**：错误处理中间件只负责错误处理，不混合业务逻辑
+> - **统一格式**：所有错误响应使用统一的 JSON 格式
+> - **错误分类**：区分业务错误、系统错误、验证错误
+> - **错误追踪**：记录足够的上下文信息用于调试
+
+### 2. 错误响应格式
+
+```go
+type ErrorResponse struct {
+    Code    int    `json:"code"`    // 业务状态码
+    Message string `json:"message"` // 用户友好的错误信息
+    Details string `json:"details,omitempty"` // 开发环境详细信息
+    TraceID string `json:"trace_id,omitempty"` // 链路追踪ID
+}
+```
+
+### 3. 错误处理中间件模板
+
+```go
+func ErrorHandlerMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Next()
+        
+        if len(c.Errors) > 0 {
+            err := c.Errors.Last().Err
+            
+            // 根据错误类型返回不同的响应
+            var bizErr *businessError
+            if errors.As(err, &bizErr) {
+                c.JSON(bizErr.HTTPCode, ErrorResponse{
+                    Code:    bizErr.Code,
+                    Message: bizErr.Message,
+                    TraceID: getTraceID(c),
+                })
+                return
+            }
+            
+            // 未知错误返回500
+            c.JSON(http.StatusInternalServerError, ErrorResponse{
+                Code:    500,
+                Message: "服务器内部错误",
+                TraceID: getTraceID(c),
+            })
+        }
+    }
+}
+```
+
+### 4. 日志记录最佳实践
+
+> [!warning] 安全日志记录
+> - **结构化日志**：使用 JSON 格式记录日志
+> - **敏感信息过滤**：不记录密码、Token 等敏感信息
+> - **上下文信息**：记录请求路径、方法、IP、TraceID 等
+> - **错误分类**：区分业务错误和系统错误的日志级别
+
+## 相关资源
+
+- [[BFF logger中间件的问题]] - Logger 中间件具体问题分析
+- [[Gin 中间件最佳实践]] - Gin 框架中间件开发最佳实践
+- [[Go 错误处理模式]] - Go 语言错误处理模式与最佳实践
+- [[分布式链路追踪]] - 分布式系统链路追踪实践
