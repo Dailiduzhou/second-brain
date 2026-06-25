@@ -80,6 +80,7 @@ tags:
 - [ ] cpp 项目管理
 - [ ] cpp真实HTTP服务器
 - [ ] c4 compiler
+- [ ] mini-redis源码回顾
 
 ## 团队项目
  - [ ] 华师匣子BFF 阅读
