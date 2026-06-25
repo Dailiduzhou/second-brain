@@ -147,5 +147,3 @@ func (lm *LoggerMiddleware) MiddlewareFunc() gin.HandlerFunc {
 ## 相关资源
 
 - [[BFF 中间件错误处理]] - BFF 中间件错误处理完整指南
-- [[Gin 中间件最佳实践]] - Gin 框架中间件开发最佳实践
-- [[Go 错误处理模式]] - Go 语言错误处理模式与最佳实践

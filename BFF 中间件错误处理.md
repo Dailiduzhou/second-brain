@@ -310,6 +310,3 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 ## 相关资源
 
 - [[BFF logger中间件的问题]] - Logger 中间件具体问题分析
-- [[Gin 中间件最佳实践]] - Gin 框架中间件开发最佳实践
-- [[Go 错误处理模式]] - Go 语言错误处理模式与最佳实践
-- [[分布式链路追踪]] - 分布式系统链路追踪实践
