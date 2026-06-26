@@ -114,7 +114,13 @@ func NewHttpProxy(p proxyv1.ProxyClient, l logger.Logger) Client {
 
     return globalProxy
 }
+```
 
+> [!warning]
+> 上述写法把 `*cron.Cron` 的引用丢失了，进程退出时拿不到调度器做优雅停机。
+> 修复方案见 [[cron 关闭兜底]]。
+
+```go
 func (s *HttpProxy) GetProxyAddr(_ context.Context, cnt int) []string {
     if s.direct {
         return make([]string, cnt)
@@ -286,7 +292,7 @@ func NewCrawlerClient(pc proxy.Client, t time.Duration, options ...proxy.Option)
 ## 已知问题
 
 - **全局单例**：`globalProxy` 不支持多租户，按服务隔离代理需要重构。
-- **cron 缺停机兜底**：`@every 15s` 的 `cron.Cron` 没有 `defer c.Stop()`，进程退出靠 OS 信号回收（与 [[定时任务实现]] 中 `be-proxy` / `common/bizpkg/proxy` 的现状一致）。
+- **cron 关闭兜底**：`@every 15s` 的 `cron.Cron` 引用未保存到结构体字段，进程退出时无法调用 `Stop()`。详见 [[cron 关闭兜底]]。
 - **错误暴露粒度**：gRPC 拉取失败仅 `Warn`，没有暴露 Prometheus 指标，排障依赖日志检索。
 - **无降级熔断**：上游 `be-proxy` 不可用时只会持续走直连（fallback），没有显式熔断或重试策略。
 
@@ -295,4 +301,4 @@ func NewCrawlerClient(pc proxy.Client, t time.Duration, options ...proxy.Option)
 - `common/bizpkg/proxy` 通过**全局单例 + 定时刷新**的方式，把 IP 代理池的复杂度收敛在 `HttpProxy` 内。
 - **函数选项式 API** 让 `HttpClient` 的构造保持可拓展、默认值友好。
 - 业务侧只需 `proxy.WithProxyTransport()` 即可启用代理，配置切换通过 yaml 中的 `proxy.mode` 完成。
-- 与 [[定时任务实现]] / [[go-kratos 中间件实现]] 共同构成 `common` 模块的横切能力集合。
+- 与 [[定时任务实现]] / [[go-kratos 中间件实现]] / [[cron 关闭兜底]] 共同构成 `common` 模块的横切能力集合。
