@@ -89,6 +89,10 @@ func SetupOTel(ctx context.Context, opts ...Option) (func(context.Context) error
         shutdownFuncs = nil
         return err
     }
+    
+    handleErr := func(inErr error) {
+		err = errors.Join(inErr, shutdown(ctx))
+	}
 
     prop := newPropagator()
     otel.SetTextMapPropagator(prop)
@@ -104,6 +108,21 @@ func SetupOTel(ctx context.Context, opts ...Option) (func(context.Context) error
     return shutdown, nil
 }
 ```
+
+> [!tip] 
+> 这里选择了Go语言经典的**函数选项式模式**处理配置。具有以下优点：
+>  1. 默认值友好：有可运行的默认配置。
+>  2. 极强的拓展性：能方便地传入`Option`。
+
+这段代码维护了`shutdownFuncs`切片和`shutdown`函数。做到了两件事：
+1. 保证发生错误，资源能够释放。
+2. 保留拓展性，能聚合多个`Provider`的关机函数。
+
+`errors.Join(...)`**不会中断函数运行**，而是会积累“错误树”。即使有组件的关机逻辑报错，后续组件也能执行关机逻辑。
+
+`shutdownFuncs = nil`这段代码，清空切片，保证了**幂等性**。
+
+`handleErr`负责聚合错误。
 
 关键配置：
 
