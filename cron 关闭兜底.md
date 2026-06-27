@@ -39,8 +39,8 @@ tags:
 `cron.Cron` 在 `Start()` 后会派生一个**调度 goroutine**，并把任务分发到独立的 worker goroutine：
 
 - `Start()` 之后**不会**在进程退出时自动清理，依赖外部显式调用 `Stop()`。
-- `Stop()` 只**阻止新任务触发**，**不会**中断已经启动的 goroutine；它返回一个 `doneCtx`，所有 in-flight 任务结束后才会 close。
-- 如果直接 `os.Exit` / `SIGKILL` / `panic`，in-flight 任务可能被截断，触发以下问题：
+- `Stop()` 只**阻止新任务触发**，**不会**中断已经启动的 goroutine；它返回一个 `doneCtx`，所有执行中任务结束后才会 close。
+- 如果直接 `os.Exit` / `SIGKILL` / `panic`，执行中任务可能被截断，触发以下问题：
   - 任务体写到一半的副作用（半条 SQL、半条 Kafka 消息）。
   - 没有 `defer` 释放的资源（文件句柄、Redis 连接）。
   - 进程退出日志缺失 `cron stopped` 之类的收尾记录，排障时无法判断任务是否执行过。
@@ -79,7 +79,7 @@ if err := cronMgr.Stop(ctx); err != nil {
 
 ### 3. 直接持有 `*cron.Cron`（推荐统一为 `Close(ctx)`）
 
-在持有 `*cron.Cron` 字段的结构体上暴露 `Close(ctx context.Context) error`，由 `wire` 注入到 Kratos 的停机链路：
+在持有 `*cron.Cron` 字段的结构体上暴露 `Close(ctx context.Context) error`，由 [[华师匣子框架#依赖注入（Google Wire）|wire]] 注入到 Kratos 的停机链路：
 
 ```go
 type HttpProxy struct {
@@ -94,8 +94,8 @@ type HttpProxy struct {
     cron *cron.Cron // 持有调度器，便于停机
 }
 
-// Close 优雅停机：阻止新任务触发并等待 in-flight 任务结束。
-// 适用场景：与 Kratos server 关闭链路对接。
+// Close 优雅停机：阻止新任务触发并等待执行中任务结束。
+// 适用场景：与 Kratos 服务关闭链路对接。
 func (s *HttpProxy) Close(ctx context.Context) error {
     if s.cron == nil {
         return nil
@@ -163,7 +163,7 @@ func NewLifecycleServer(closer func(context.Context) error, name string) *Lifecy
 }
 ```
 
-`wire` 注入时把 `HttpProxy.Close` 当作 closer：
+[[华师匣子框架#依赖注入（Google Wire）|wire]] 注入时把 `HttpProxy.Close` 当作 closer：
 
 ```go
 func provideProxyLifecycle(p *HttpProxy) grpcx.Server {
@@ -203,7 +203,7 @@ kratos.New(
 | `be-classlist/internal/biz/classer.go` | ✅ | ✅ `Manager.Stop` | ✅ `usecase.Close()` |
 | `be-class/internal/timedTask/timedTask.go` | ✅ | ⚠️ `c.Stop()` 直接调用 | ❌ 没有 `Stop` 出口 |
 | `be-proxy/service/proxy.go` | ❌ | ❌ | ❌ 进程退出靠 OS 信号 |
-| `common/bizpkg/proxy/http.go` | ❌ | ❌ | ❌ 进程退出靠 OS 信号 |
+| `common/bizpkg/proxy/http.go`（[[整体代理(proxy)使用]]） | ❌ | ❌ | ❌ 进程退出靠 OS 信号 |
 
 > 详细分析见 [[定时任务实现]]。
 
@@ -225,7 +225,7 @@ kratos.New(
 
 ## 实现结论
 
-- robfig/cron 的关闭必须**显式调用** `Stop()` 并等待 `doneCtx`，否则 in-flight 任务可能被截断。
+- robfig/cron 的关闭必须**显式调用** `Stop()` 并等待 `doneCtx`，否则执行中任务可能被截断。
 - 项目内推荐两条路：
   1. **首选** `cronx.Manager`（[[定时任务实现]]），一行 `Stop(ctx)` 解决。
   2. **次选** 在结构体上保存 `*cron.Cron` 字段，暴露 `Close(ctx)`，并包装成 `LifecycleServer` 接入 Kratos 停机链路。

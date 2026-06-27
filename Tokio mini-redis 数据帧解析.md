@@ -4,7 +4,7 @@ type: deep-dive
 topic: mini-redis
 frameworks:
   - tokio
-status: seedling
+status: done
 tags:
   - programming-language/rust/tokio
   - programming-language/rust/mini-redis
