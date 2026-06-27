@@ -36,6 +36,13 @@ impl Drop for DbDropGuard {
 }
 ```
 
+> [!hint]  `DbDropGuard` 的设计
+> 在整个项目中，`DbDropGuard` 当且仅当 `Server` (本质是 `Listener` )退出时调用。事实上实现了一个薄的 `RAII guard` 封装，并且把 `DbDropGuard` 和 `Server` 的生命周期绑定了。
+> 有以下优点：
+> 1. 封装内部资源回收的逻辑，减少使用心智负担和方法对外暴露。
+> 2. 如果只有 `Db` ，难以保证 `shutdown` 有且仅有一次调用。
+
+
 **`Db`** 提供了一个`thin wrapper`保证了获取共享状态的指针的**线程安全**。
 ```rust
 #[derive(Debug, Clone)]
@@ -47,7 +54,7 @@ pub(crate) struct Db {
 ```
 
 > [!tip] 命名方式澄清
-> 虽然名叫`Db`，但实际更倾向是一个服务器状态(`ServerState`)。
+> 虽然名叫 `Db`，但实际更倾向是一个服务器状态( `ServerState` )。
 > 这是为了演示项目的简单性而做的妥协，事实上违反了单一职责原则(SRP)。
 > 理想的重构模式应该是[[Tokio mini-redis 架构改正]]
 
