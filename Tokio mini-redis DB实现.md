@@ -46,6 +46,11 @@ pub(crate) struct Db {
 }
 ```
 
+> [!tip] 命名方式澄清
+> 虽然名叫`Db`，但实际更倾向是一个服务器状态(`ServerState`)。
+> 这是为了演示项目的简单性而做的妥协，事实上违反了单一职责原则(SRP)。
+> 理想的重构模式应该是[[Tokio mini-redis 架构改正]]
+
 `Shared`表示一个带互斥锁的状态，并且包装了一个唤醒后台任务的句柄`Notify`。
 ```rust
 #[derive(Debug)]
