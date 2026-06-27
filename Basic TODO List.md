@@ -81,11 +81,12 @@ tags:
 - [ ] cpp真实HTTP服务器
 - [ ] c4 compiler
 - [ ] mini-redis源码回顾
+- [ ] Effective Typescript
 
 ## 团队项目
- - [ ] 华师匣子BFF 阅读
- - [ ] BFF 各部分路由
- - [ ] JWT封装
+ - [x] 华师匣子BFF 阅读
+ - [x] BFF 各部分路由
+ - [x] JWT封装
  - [ ] BFF 自制中间件
  - [ ] 华师匣子配置读取部分
  - [ ] 项目中 gRPC 写法与注册

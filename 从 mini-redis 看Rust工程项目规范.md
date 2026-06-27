@@ -1,4 +1,5 @@
 ---
+title: 从 mini-redis 看 Rust 工程项目规范
 category: programming-language
 type: architecture
 topic: mini-redis
@@ -8,8 +9,14 @@ status: seedling
 tags:
   - programming-language/rust
   - programming-language/rust/mini-redis
+aliases:
+  - Rust 项目规范讲解
+  - mini-redis 工程结构
 ---
-# Rust 项目规范讲解（以 mini-redis 为例）
+
+# 从 mini-redis 看 Rust 工程项目规范
+
+本文以 [`tokio-rs/mini-redis`](https://github.com/tokio-rs/mini-redis) 为例，整理 Rust 工程项目中常见的目录划分、模块声明与可见性规范。
 
 ## 一、项目目录结构
 
@@ -170,3 +177,9 @@ use mini_redis::{server, DEFAULT_PORT};  // 只能使用 pub 导出的内容
 - 对外 API → `pub`
 - 内部共享 → `pub(crate)`
 - 模块私有 → 不加修饰符（默认）
+
+## 相关文档
+
+- [[Rust]]
+- [[Tokio Mini-Redis 源码阅读]]
+- [[Rust Stream 与 async_stream]]

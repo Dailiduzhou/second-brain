@@ -13,6 +13,8 @@ tags:
 ## Rust
 [[Rust]]
 
+## Typescript
+[[Typescript]]
 ## Redis
 [[Redis]]
 
