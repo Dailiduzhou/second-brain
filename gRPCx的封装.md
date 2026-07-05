@@ -71,17 +71,17 @@ type Server interface {
 
 #### 2.2.1 结构体 `grpc_server.go:18`
 
-| 字段 | 类型 | 作用 |
-|------|------|------|
-| `*grpc.Server` | 嵌入 | 可直接调用 `RegisterService`、`GracefulStop` 等 |
-| `Port` | `int` | 监听端口 |
-| `EtcdTTL` | `int64` | etcd 租约 TTL（单位：秒） |
-| `EtcdClient` | `*clientv3.Client` | etcd v3 客户端 |
-| `etcdManager` | `endpoints.Manager` | etcd 端点管理器（`Close` 时用于摘除端点） |
-| `etcdKey` | `string` | etcd 上的完整 key |
-| `cancel` | `func()` | 用于关闭时取消内部 ctx |
-| `Name` | `string` | 服务名 |
-| `L` | `logger.Logger` | 日志器 |
+| 字段             | 类型                  | 作用                                       |
+| -------------- | ------------------- | ---------------------------------------- |
+| `*grpc.Server` | 嵌入                  | 可直接调用 `RegisterService`、`GracefulStop` 等 |
+| `Port`         | `int`               | 监听端口                                     |
+| `EtcdTTL`      | `int64`             | etcd 租约 TTL（单位：秒）                        |
+| `EtcdClient`   | `*clientv3.Client`  | etcd v3 客户端                              |
+| `etcdManager`  | `endpoints.Manager` | etcd 端点管理器（`Close` 时用于摘除端点）              |
+| `etcdKey`      | `string`            | etcd 上的完整 key                            |
+| `cancel`       | `func()`            | 用于关闭时取消内部 ctx                            |
+| `Name`         | `string`            | 服务名                                      |
+| `L`            | `logger.Logger`     | 日志器                                      |
 
 #### 2.2.2 `Serve()` 启动流程 — `grpc_server.go:32`
 
