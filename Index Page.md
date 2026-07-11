@@ -9,6 +9,8 @@ tags:
 ## TODO List
 [[Basic TODO List]]
 
+## 仓库规范
+[[Git submodule 使用规范]]
 
 ## Rust
 [[Rust]]
