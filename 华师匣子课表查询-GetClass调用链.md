@@ -15,6 +15,33 @@ aliases:
 > [!abstract] 本文定位
 > 本文是 [[华师匣子课表查询]] 的续篇，专注于 `GetClass` 请求的完整调用链：从 gRPC 入口到 biz 层刷新决策，再到爬虫和 Kafka 延迟重试。
 
+## 阅读前先统一语义
+
+`GetClass` 同时承担“读取本地课表”和“按需触发刷新”两项职责。为避免把几个时间概念混在一起，本文使用以下约定：
+
+- **本地数据**：缓存或数据库中已保存的课程及其最后刷新时间。
+- **刷新日志**：记录一次爬虫任务处于 `Pending`、`Ready` 或 `Failed` 的状态，用于协调并发请求。
+- **刷新间隔**：在这段时间内已有刷新任务时，后续请求优先等待或复用结果，而不是重复访问教务系统。
+- **等待预算**：同步 RPC 愿意等待正在运行任务的最长时间；预算用尽并不代表刷新失败，只代表本次请求选择先返回旧数据。
+- **延迟重试**：同步爬虫失败后投递的异步恢复机制，不改变当前请求的降级结果。
+
+因此，该接口的优先级是“尽快给出可用课表，其次争取更新到最新”。调用者如果需要严格判断新鲜度，应同时检查返回的最后刷新时间，而不能把一次成功响应等同于一次成功爬取。
+
+## 源码索引
+
+本文中的代码片段来自 `source/ccnubox-be/be-classlist_v2` submodule 的提交 `afcc2ad`：
+
+| 调用阶段 | 源码引用 |
+|---|---|
+| gRPC `GetClass` | [grpc/classlist.go](source/ccnubox-be/be-classlist_v2/grpc/classlist.go) |
+| Service `GetClass` | [service/classlist.go](source/ccnubox-be/be-classlist_v2/service/classlist.go) |
+| Biz `GetClasses` | [biz/usecase/classer.go](source/ccnubox-be/be-classlist_v2/biz/usecase/classer.go) |
+| singleflight 与 `crawMergedClass` | [biz/usecase/classer_helpers.go](source/ccnubox-be/be-classlist_v2/biz/usecase/classer_helpers.go) |
+| Delay/Real topic | [events/topic/topic.go](source/ccnubox-be/be-classlist_v2/events/topic/topic.go) |
+| 延迟转发与消费者 | [events/delay/delay.go](source/ccnubox-be/be-classlist_v2/events/delay/delay.go)、[events/consumer/consumer.go](source/ccnubox-be/be-classlist_v2/events/consumer/consumer.go) |
+
+这些链接用于从笔记中的分析直接回到 submodule 源码；源码版本由父仓库记录的 submodule 提交保证一致。
+
 ## 调用链总览
 
 ```
@@ -54,6 +81,8 @@ func (c *ClasslistServiceServer) GetClass(ctx context.Context, req *classlistv1.
 }
 ```
 
+这一层不应做缓存、爬虫或重试决策。其稳定职责是将 protobuf 字段转换为 service 入参，并在成功后把业务对象映射回响应对象。保持 handler 薄，可以避免同一业务规则在 HTTP/gRPC 等多个接入层分叉，也让业务逻辑能够脱离网络框架测试。
+
 ## Service 层
 
 填充默认值，校验参数，然后透传给 biz 层：
@@ -70,6 +99,8 @@ func (s *ClassListService) GetClass(ctx context.Context, stuID, year, semester s
     return s.clu.GetClasses(ctx, stuID, year, semester, refresh)
 }
 ```
+
+默认值填充发生在生成缓存键、刷新日志和 singleflight key 之前。这样省略学年学期的请求与显式传入当前学期的请求会落到同一份数据和同一条并发协作链路，避免为同一学生同一学期创建两次刷新任务。
 
 ## Biz 层 — 刷新决策
 
@@ -98,8 +129,20 @@ refresh=false 且 localErr=nil
     → ActionStartCrawl
 ```
 
+可以将决策理解为下表：
+
+| 条件 | 动作 | 对调用方的含义 |
+|---|---|---|
+| 未要求刷新，且本地读取成功 | `ActionReturnLocal` | 立即返回，完全不访问教务系统 |
+| 存在时间窗口内的 `Pending` 刷新 | `ActionWaitPending` | 复用正在进行的工作，短暂等待结果 |
+| 首次读取、数据缺失、显式刷新，或刷新窗口已过 | `ActionStartCrawl` | 尝试发起或加入一次爬虫 |
+
+显式 `refresh=true` 表示调用者愿意尝试更新，但仍受并发控制和降级逻辑保护。它不会绕过 singleflight，也不会在教务系统不可用时无限同步重试。
+
 > [!note] 首次爬虫超时更长
 > `localLastRefreshTime == nil` 表示从未刷新过，此时 `waitCrawTime` 会被强制提升到至少 15 秒，给爬虫更多时间完成。
+
+首次查询没有旧数据可兜底，适度延长等待时间可以提高直接拿到课表的概率；已有旧数据时则应缩短同步等待，避免把刷新延迟放大为用户界面卡顿。这是“首屏完整性”与“稳定响应时间”之间的明确取舍。
 
 ### 主函数代码
 
@@ -166,11 +209,15 @@ func (cluc *ClassUsecase) GetClasses(ctx context.Context, stuID, year, semester 
 }
 ```
 
+这里最值得注意的是错误收敛：爬虫或刷新失败被记录到日志，但不必然转化为 RPC 错误。只要存在旧数据，接口倾向于返回旧结果，以保护读可用性。调用方若要显示“数据可能过期”的提示，应依赖最后刷新时间或单独的状态字段，而不是把空错误当作绝对新鲜的证明。
+
 ## 爬虫分支
 
 ### singleflight 去重
 
 `doCrawlWithSingleflight` 用 `singleflight.Group` 合并同一时间对同一学生同一学期的并发爬虫请求，key 为 `craw:{stuID}:{year}:{semester}`。
+
+它解决的是**进程内**的请求风暴：十个同时到达的相同请求只执行一次 `crawMergedClass`，其余请求等待并共享结果。key 必须包含学生和学期；若只按学生去重，会把不同学期的数据错误合并。该机制不替代跨实例协调：当服务以多个副本运行时，每个实例各有自己的 `singleflight.Group`，仍需依赖刷新日志、缓存或分布式锁策略来控制全局并发。
 
 ```go
 // biz/usecase/classer_helpers.go
@@ -187,6 +234,8 @@ func (cluc *ClassUsecase) doCrawlWithSingleflight(...) ([]*model.ClassInfoBO, er
 爬取过程分五步：
 
 ```
+
+刷新日志把长时间外部操作显式建模为状态机：写入 `Pending` 后，其他请求知道有工作正在进行；所有成功持久化和合并完成后才标为 `Ready`；任一步骤出错则标为 `Failed` 并进入延迟重试。状态更新应尽量靠近真实结果发生的位置，避免日志显示成功而数据尚未落库，或数据落库后一直显示处理中。
 1. InsertRefreshLog(Pending)   ← 记录刷新任务开始
 2. getCourseFromCrawler        ← 执行实际爬虫
    └── 失败 → UpdateLog(Failed) + sendRetryMsg (Kafka)
@@ -252,12 +301,19 @@ func (cluc *ClassUsecase) crawMergedClass(...) ([]*model.ClassInfoBO, error) {
 }
 ```
 
+合并的顺序体现了两类数据的所有权：爬虫返回的是官方课程，刷新时可以替换；用户手动添加的课程和用户备注属于本服务，应尽可能保留。刷新前先用旧课程 ID 建立备注映射，再把备注回填到同 ID 的新官方课程，可避免一次正常刷新清空用户标注。对时间冲突的自定义课程进行过滤和删除，则是为了防止课程表在同一时段重复展示；这类删除属于有业务含义的写操作，应记录可追踪信息，便于用户申诉或排查误判。
+
+> [!warning] 并发边界
+> singleflight 只合并爬虫函数本身，不能自动保证所有后续数据库写入、缓存失效和刷新日志更新在跨进程场景中的串行性。扩容、重试或人工触发刷新时，应通过唯一约束、幂等写入和刷新日志查询来抵抗重复执行。
+
 ## Kafka 延迟重试机制
 
 > [!tip] sarama 用法详解
 > 关于 `ConsumerGroupHandler` 接口、函数适配器、消费主循环和启动逻辑的底层原理，见 [[Sarama ConsumerGroup 使用解析]]。
 
 爬虫失败时不直接重试，而是写入 Kafka 延迟队列，等待一段时间后再重新发起爬虫。这样能避免在教务系统临时不可用时立即轮询，同时保证最终一致性。
+
+延迟队列将“失败后何时再试”从同步请求中拆出：原请求可以立刻以旧数据降级结束，消费者则在后台按延迟时间重新触发完整流程。它提供的是面向恢复的**至少一次尝试**，而非精确一次处理；因此 `SaveClass`、刷新日志更新和消息处理都应可重复执行，或具备幂等保护。
 
 ### Topic 定义
 
@@ -342,6 +398,8 @@ func (c *DelaySendHandler) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 > [!warning] 设计取舍
 > 消费失败时直接 MarkMessage 跳过，而非阻塞重试。这是有意为之：失败应该由独立告警通道处理，消费循环不应死磕，否则会阻塞整个 partition 的消费。
 
+这也意味着该队列不是“零丢失”的死信系统：过期过久的消息和转发失败的消息会被确认并跳过。生产环境应至少为这两条分支配置结构化日志、指标和告警，并在必要时把原始消息复制到可人工回放的失败主题；否则故障可能只表现为某个学生的课表长期未刷新。
+
 ### Real Topic 消费（实际重试）
 
 `ClassUsecase` 在初始化时启动 real topic 的消费：
@@ -416,3 +474,15 @@ func (c *Consumer) Consume(topics []string, groupID string, handler sarama.Consu
 ```
 
 `for` 循环保证消费者在 rebalance 后自动重新加入，直到 context 取消为止。
+
+## 排障与验证清单
+
+| 现象 | 优先检查 | 预期判断 |
+|---|---|---|
+| 总是返回旧课表 | `refresh` 入参、最后刷新时间、`ActionReturnLocal` 条件 | 未显式刷新且本地可用时，这是正常读路径 |
+| 请求等待后仍是旧数据 | `Pending` 刷新日志、等待预算、爬虫日志 | 超出等待预算会主动降级，不等于接口异常 |
+| 同一学生出现大量并发爬虫 | `craw:{stuID}:{year}:{semester}` key、服务实例数、刷新日志 | 单实例应被 singleflight 合并；跨实例需检查其他协调措施 |
+| Kafka 有消息但未重试 | delay/real topic、消费者组、消息时间戳和 `delayTime` | delay topic 到期后才会转发至 real topic |
+| 课表刷新后备注或自定义课异常 | `MetaData` 回填、冲突过滤、事务与缓存失效日志 | 官方课可更新，用户数据应被有意保留或有据删除 |
+
+建议至少覆盖四类集成测试：冷启动首次查询、缓存命中查询、多个并发刷新请求，以及爬虫失败后由 Kafka 触发的恢复路径。测试断言除了课程内容，还应覆盖刷新日志状态、是否重复爬虫、缓存失效以及失败时旧数据能否返回。

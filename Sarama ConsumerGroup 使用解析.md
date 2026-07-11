@@ -14,6 +14,15 @@ aliases:
 > [!abstract] 本文定位
 > 以 [[华师匣子课表查询-GetClass调用链]] 中的延迟重试队列为例，解释 sarama 消费者组的核心用法：`ConsumerGroupHandler` 接口的职责、函数适配器模式、消费主循环位置，以及项目启动时两条消费者 goroutine 的初始化时机。
 
+## 先理解消费语义
+
+Kafka 消费者组把 topic 的 partition 分配给同组中的多个实例：同一 partition 在同一时刻只会由组内一个消费者处理，因此能维持该 partition 内的顺序；不同 partition 则并行处理，不能假设全局顺序。消费者组通过已提交的 offset 记录进度，服务重启或 rebalance 后会从已提交位置继续。
+
+这套模型通常提供**至少一次**处理语义：业务处理完成后再标记消息，消息可能因进程崩溃、提交延迟或 rebalance 被再次投递。因此业务函数应设计为幂等，例如使用唯一业务键、数据库唯一约束或可安全覆盖的写入，而不能假设每条重试消息只会执行一次。
+
+> [!note] `MarkMessage` 的含义
+> `session.MarkMessage` 将消息标记为“可提交”；真正提交到 broker 的时机取决于 sarama 的自动提交配置和 session 生命周期。它不是业务事务的提交，也不能撤销已经执行的外部副作用。
+
 ## ConsumerGroupHandler 是什么
 
 sarama 用 `ConsumerGroupHandler` 接口描述"消费者组里的一个消费者该做什么"。它有三个方法：
@@ -48,10 +57,12 @@ rebalance 或关闭
 ```
 
 `ConsumerGroupSession` 提供两个关键能力：
-- `MarkMessage(msg, metadata)` — 提交 offset，告诉 broker 这条消息已处理
+- `MarkMessage(msg, metadata)` — 标记 offset，表示这条消息已处理并可由 sarama 提交
 - `Context()` — 会话级 context，rebalance 时会被 cancel
 
 `ConsumerGroupClaim` 代表分配到的一个 partition，`claim.Messages()` 是一个只读 channel，消息按序推入。
+
+生命周期方法不应长期阻塞：`Setup` 适合建立与本次 session 有关的轻量资源，`ConsumeClaim` 负责读取消息直到 session 结束，`Cleanup` 适合释放或刷新资源。当 rebalance 发生时，业务处理应尽快响应 `session.Context().Done()`；否则消费者无法及时让出 partition，可能扩大重平衡的影响范围。
 
 ## FuncConsumeHandler：把函数包成接口
 
@@ -80,13 +91,15 @@ func (h *FuncConsumeHandler) ConsumeClaim(session sarama.ConsumerGroupSession, c
 
         h.f(ctx, msg.Key, msg.Value)   // 调用传入的业务函数
 
-        session.MarkMessage(msg, "")   // 提交 offset
+        session.MarkMessage(msg, "")   // 标记 offset，等待 sarama 提交
     }
     return nil
 }
 ```
 
-这是标准的**函数适配器**模式（类似 `http.HandlerFunc`）：接口有三个方法，但实际业务只关心消息内容，`Setup`/`Cleanup` 留空，`ConsumeClaim` 里的 for-range 循环就是消费主循环，业务逻辑被抽象成一个 `func(ctx, key, value)`。
+这是标准的**函数适配器**模式（类似 `http.HandlerFunc`）：接口有三个方法，但实际业务只关心消息内容，`Setup`/`Cleanup` 留空，`ConsumeClaim` 里的 for-range 循环就是消费主循环，业务逻辑被抽象成一个 `func(ctx, key, value)`。它把框架的 session、claim 和 offset 协议集中在基础设施层，使业务层只需接收 trace context、key 与 value。
+
+这种抽象的边界也很清楚：传入的函数没有返回 `error`，所以它不能直接要求框架“不要确认这条消息”。`handleRetryMessage` 一类函数必须在内部记录反序列化或业务失败，并决定是否把失败交给下一次延迟投递、告警或人工回放；不能把错误悄悄吞掉。
 
 调用方只需传入一个函数：
 
@@ -116,6 +129,8 @@ func (h myHandler) ConsumeClaim(...) error { /* ... */ }
 
 主循环就是 `ConsumeClaim` 里的 `for msg := range claim.Messages()`。`claim.Messages()` 这个 channel 在 rebalance 或 session 结束时会被关闭，for-range 自然退出，函数返回，sarama 框架收回这个 goroutine。
 
+同一 claim 内必须按读取顺序完成处理并标记 offset。若为提升吞吐把单个 partition 的消息随意扇出到异步 goroutine，后面的消息可能先被标记提交，进程崩溃时就会跳过前面的未完成消息。确需并发时，应保留有序确认机制，或让消息键确保同一业务实体落在同一 partition 并串行处理。
+
 ### DelaySendHandler（delay topic）
 
 delay topic 的消费逻辑更复杂，需要检查消息年龄，所以项目单独实现了完整的 `ConsumerGroupHandler`：
@@ -139,7 +154,7 @@ func (c *DelaySendHandler) ConsumeClaim(session sarama.ConsumerGroupSession, cla
         }
 
         // 未到延迟时间：休眠 1 秒，然后 return nil
-        // return 会让 sarama 重新调用 ConsumeClaim，消息重新出现在 channel 里
+        // 未标记 offset；消息会在后续分配/重新消费时再次可见
         time.Sleep(time.Second)
         return nil
     }
@@ -148,7 +163,9 @@ func (c *DelaySendHandler) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 ```
 
 > [!tip] 为什么 return nil 不会丢消息
-> 只有调用 `session.MarkMessage` 才会提交 offset。没有 mark 就 return，sarama 下次重新分配这个 partition 时，会从上次提交的 offset 继续消费，消息不会丢失。这是 delay queue 的"等待"机制的实现基础。
+> 只有被 `session.MarkMessage` 标记的 offset 才会进入提交流程。没有 mark 就 return，后续分配或重新消费会从上次已提交的位置继续，因此该消息仍可再次被读到。这是 delay queue 的“等待”机制基础；但具体重投时机受 consumer session 与 sarama 配置影响，不能把一次 `return` 当作精确的定时器。
+
+这种“按消息时间戳轮询”的延迟实现简单，但会让同一 partition 上排在前面的未到期消息阻塞后面的消息，也会在未到期期间重复拉起消费会话。延迟精度、吞吐与成本取决于 `delayTime`、消息分区方式和轮询间隔；若延迟队列规模显著增长，应评估专门的调度存储、按到期时间分桶，或具备延迟投递能力的消息系统。
 
 ## 外层消费循环：Consumer.Consume
 
@@ -191,6 +208,8 @@ ConsumeClaim（per-partition 消费循环）
     ↓ for msg := range claim.Messages()
     处理消息，MarkMessage
 ```
+
+关闭服务时，`c.cctx` 应由应用生命周期统一 cancel，促使正在运行的 `cg.Consume` 退出，并由 `defer cg.Close()` 释放客户端资源。仅停止启动 goroutine 而不 cancel context，消费者仍可能继续持有 partition；仅 cancel 而不等待 goroutine 退出，则可能在进程强制结束前丢失尚未完成的日志或指标。优雅停机通常需要“停止接流量 → cancel 消费 context → 等待 goroutine → 关闭 client”的顺序。
 
 ## 项目启动时的两条消费者 goroutine
 
@@ -243,6 +262,8 @@ func (cluc *ClassUsecase) startRetryConsumer() {
 
 `NewClassUsecase` 是业务层的构造函数，同样由 wire 调用。消费 `be-classlist-real` topic，收到消息后调用 `GetClasses(refresh=true)` 执行真正的重试爬虫。
 
+两个消费者使用不同的 group ID 和不同的职责，不能互换：delay consumer 负责保留尚未到期的消息并转发，real consumer 负责执行实际业务。若两个实例误用同一个 group ID 或订阅错误 topic，可能表现为消息被其他实例分走、重复转发，或重试任务永远没有真正执行。
+
 ### 两者的对比
 
 | | delay topic 消费者 | real topic 消费者 |
@@ -254,3 +275,19 @@ func (cluc *ClassUsecase) startRetryConsumer() {
 
 > [!note] 防止误用
 > `DelayKafka.Consume` 内部检查了 `groupID != d.proxyGroupID`，防止外部消费者误用 delay topic 的 group ID，确保 delay topic 只由内部的 `DelaySendHandler` 消费。
+
+## 监控、告警与测试
+
+建议至少记录以下观测项，以便把“Kafka 有消息”与“重试已经生效”区分开来：
+
+| 观测项 | 用途 |
+|---|---|
+| consumer group lag（分别按 delay / real topic） | 发现消费者停滞、分区积压或处理能力不足 |
+| 消息转发成功与失败数 | 识别 delay topic 到 real topic 的断点 |
+| 过期丢弃数（`>= 20 × delayTime`） | 发现长时间故障或延迟配置不合理 |
+| `handleRetryMessage` 的解析与爬虫失败数 | 区分坏消息、业务失败和外部系统故障 |
+| rebalance 次数与 session 时长 | 发现频繁扩缩容、网络抖动或停机不规范 |
+
+测试应覆盖至少五种情况：单 partition 顺序消费、业务成功后 offset 被标记、业务函数 panic/失败时的观测与恢复、rebalance 后外层 `Consume` 重新加入，以及未到期 delay 消息不会被转发。对重试业务还要验证重复消息不会产生重复课程或破坏刷新日志状态。
+
+本文的业务上下文和消息从爬虫失败到重新刷新课表的完整路径，见 [[华师匣子课表查询-GetClass调用链#Kafka 延迟重试机制]]。
