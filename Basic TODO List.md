@@ -12,7 +12,7 @@ tags:
 
 ## 消息队列 / 分布式事务
 - [x] pg消息队列river
-- [ ] River实战
+- [x] River实战
 - [x] DTM的examples上手
 - [x] Dtm文档阅读
 - [x] dtm现实场景例子
@@ -49,6 +49,13 @@ tags:
 - [ ] 深入剖析Kubernetes
 - [ ] go reqwest了解
 
+## 算法
+- [ ] 代码随想录算法图论
+- [ ] 代码随想录算法额外题目
+- [ ] codeforces入门
+- [ ] 寻找线段树、BIT等进阶算法的学习资料
+- [ ] 建立进阶算法的知识库
+
 ## Redis / 缓存
 - [x] Redis实现数据一致性的标记删除方案
 - [x] Redis内置数据结构深入
@@ -60,7 +67,7 @@ tags:
 - [ ] 微信支付 回调(callback)
 - [ ] OSS 全链路流程
 - [ ] 阿里云OSS SDK的使用
-- [ ] minIO的使用
+- [x] minIO的使用
 - [x] gopay 文档
 
 ## 业务框架 / 项目
@@ -80,18 +87,21 @@ tags:
 - [ ] cpp 项目管理
 - [ ] cpp真实HTTP服务器
 - [ ] c4 compiler
-- [ ] mini-redis源码回顾
+- [x] mini-redis源码回顾
 - [ ] Effective Typescript
 
 ## 团队项目
  - [x] 华师匣子BFF 阅读
  - [x] BFF 各部分路由
  - [x] JWT封装
- - [ ] BFF 自制中间件
- - [ ] 华师匣子配置读取部分
- - [ ] 项目中 gRPC 写法与注册
+ - [x] BFF 自制中间件
+ - [x] 华师匣子配置读取部分
+ - [x] 项目中 gRPC 写法与注册
 
-
+## LLM
+- [ ] LLM-master项目阅读
+- [ ] RAG优化检索方法
+- [ ] LLM推理优化，了解量化
 
 
 ## 相关链接
