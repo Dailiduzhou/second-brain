@@ -31,6 +31,7 @@ tags:
 - `ccnubox`：华师匣子（ECNU Box）校园小程序后端项目。
 - `testing`：测试工具与测试实践。
 - `programming-language`：编程语言。
+- `algorithm`：算法、数据结构与解题技巧。
 - `productivity`：任务清单与个人效率。
 - `index`：入口页、导航页。
 - `knowledge-management`：知识库维护规范。
