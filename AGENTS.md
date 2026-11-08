@@ -13,6 +13,25 @@
 4. 涉及 `source/` 中的代码时，先阅读 [[Git submodule 使用规范]]，确认源码路径和分析所依据的 commit。
 5. 修改前运行 `git status --short`，识别并保留用户已有改动。
 
+## 目录结构
+
+文件树是 frontmatter `category` 的镜像，最多两层，供 Quartz 的 explorer 和目录页使用。
+
+```
+ccnubox/      华师匣子：bff/ architecture/ course/ middleware/
+ecommerce/    电商系统：payment/ oss/ domain/
+microservice/ 微服务：kratos/ dtm/ ops/
+programming-language/  rust/ tokio-mini-redis/ typescript/ go/
+database/  message-queue/  algorithm/  testing/  productivity/  knowledge-management/
+```
+
+规则：
+
+1. 新笔记放进对应 `category` 的目录；某类别下同一主题超过约 5 篇才新开子目录，不按“看起来更整齐”再往下分。
+2. 领域 hub 笔记放在该领域目录根部（如 `ccnubox/华师匣子.md`），用 frontmatter `aliases: [ccnubox/index]` 成为该目录首页。**不要**用 `index.md` 当目录页：多目录会重名，`[[index]]` 与 Quartz 的 shortest 解析都会歧义。
+3. 文件名全库唯一。Obsidian 的 `[[名称]]` 和 Quartz 的 `shortest` 链接解析都靠“名称唯一”定位，重名会退化成绝对路径或歧义链接。
+4. 移动或改名笔记用 `git mv`；wikilink 不用改，但移动后要跑一次 `./scripts/quartz.sh build`，确认输出里没有残留未解析的 `[[...]]`。
+
 ## 原子笔记
 
 一篇笔记应围绕一个可以独立回答的问题、概念或结论展开，并且脱离原始长文后仍然有复用价值。

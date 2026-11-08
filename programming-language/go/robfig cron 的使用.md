@@ -1,6 +1,6 @@
 ---
 title: robfig cron 的使用
-category: knowledge-management
+category: programming-language
 type: deep-dive
 topic: cron
 status: seedling
