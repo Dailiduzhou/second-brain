@@ -34,6 +34,18 @@ if [[ ! -d "$FW_DIR/node_modules" ]]; then
   (cd "$FW_DIR" && bun install)
 fi
 
+# 对固定版本 Quartz 打的补丁，脚本和 CI 共用同一套（幂等：已应用则跳过）。
+for patch in "$REPO_ROOT"/.quartz/patches/*.patch; do
+  [[ -e "$patch" ]] || continue
+  if git -C "$FW_DIR" apply --reverse --check "$patch" >/dev/null 2>&1; then
+    continue
+  fi
+  if ! git -C "$FW_DIR" apply "$patch"; then
+    echo "failed to apply $(basename "$patch"): upstream $QUARTZ_REF changed?" >&2
+    exit 1
+  fi
+done
+
 cp "$REPO_ROOT/.quartz/quartz.config.ts" "$FW_DIR/quartz.config.ts"
 cp "$REPO_ROOT/.quartz/quartz.layout.ts" "$FW_DIR/quartz.layout.ts"
 cp "$REPO_ROOT/.quartz/custom.scss" "$FW_DIR/quartz/styles/custom.scss"

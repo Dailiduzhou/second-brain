@@ -1,0 +1,23 @@
+diff --git a/quartz/components/scripts/explorer.inline.ts b/quartz/components/scripts/explorer.inline.ts
+index 9c83411..6160c95 100644
+--- a/quartz/components/scripts/explorer.inline.ts
++++ b/quartz/components/scripts/explorer.inline.ts
+@@ -222,9 +222,16 @@ async function setupExplorer(currentSlug: FullSlug) {
+       explorerUl.scrollTop = parseInt(scrollTop)
+     } else {
+       // try to scroll to the active element if it exists
+-      const activeElement = explorerUl.querySelector(".active")
++      const activeElement = explorerUl.querySelector(".active") as HTMLElement | null
+       if (activeElement) {
+-        activeElement.scrollIntoView({ behavior: "smooth" })
++        // NOTE: scrollIntoView also scrolls every ancestor scroll container, which
++        // yanks the whole page down on load. Only offset the explorer list itself.
++        const listRect = explorerUl.getBoundingClientRect()
++        const activeRect = activeElement.getBoundingClientRect()
++        if (activeRect.top < listRect.top || activeRect.bottom > listRect.bottom) {
++          explorerUl.scrollTop +=
++            activeRect.top - listRect.top - (listRect.height - activeRect.height) / 2
++        }
+       }
+     }
+ 
