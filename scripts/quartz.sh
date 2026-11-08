@@ -27,12 +27,21 @@ esac
 shift || true
 
 if [[ ! -d "$FW_DIR/.git" ]]; then
-  git clone --depth 1 --branch "$QUARTZ_REF" "$QUARTZ_REPO" "$FW_DIR"
+  # FW_DIR 可能是 CI 缓存恢复出来的（只有 node_modules，没有 .git），
+  # git clone 不能直接写进非空目录：先克隆到临时目录再把缓存搬回来。
+  clone_tmp="${FW_DIR}.clone"
+  rm -rf "$clone_tmp"
+  git clone --depth 1 --branch "$QUARTZ_REF" "$QUARTZ_REPO" "$clone_tmp"
+  if [[ -d "$FW_DIR" ]]; then
+    [[ -d "$FW_DIR/node_modules" ]] && mv "$FW_DIR/node_modules" "$clone_tmp/node_modules"
+    rm -rf "$FW_DIR"
+  fi
+  mv "$clone_tmp" "$FW_DIR"
 fi
 
-if [[ ! -d "$FW_DIR/node_modules" ]]; then
-  (cd "$FW_DIR" && bun install)
-fi
+# 安装/补齐依赖：CI 会缓存 node_modules，bun install 在依赖齐全时约 1s，
+# 同时能兜住“缓存不完整”的情况，比判断目录是否存在更稳。
+(cd "$FW_DIR" && bun install)
 
 # 对固定版本 Quartz 打的补丁，脚本和 CI 共用同一套（幂等：已应用则跳过）。
 for patch in "$REPO_ROOT"/.quartz/patches/*.patch; do
