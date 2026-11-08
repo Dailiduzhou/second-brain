@@ -4,6 +4,7 @@ type: vulnerability
 topic: jwt-coupling
 module: bff
 status: seedling
+draft: true
 tags:
   - ccnubox
   - ccnubox/bff

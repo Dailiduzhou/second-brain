@@ -9,3 +9,8 @@
 # Cross-platform OS noise
 .DS_Store
 Thumbs.db
+
+# Quartz build artifacts (the site is built in CI, see .github/workflows/publish.yml)
+.quartz-framework/
+public/
+.quartz-cache/

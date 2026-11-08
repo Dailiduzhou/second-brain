@@ -1,0 +1,68 @@
+# Gitleaks 配置：这个仓库既是 Obsidian 知识库，也是要发布到 GitHub Pages 的站点源码。
+# 公开前必须先确认没有任何真实凭据留在笔记、示例或 git 历史里。
+#
+#   gitleaks git --config .gitleaks.toml --redact --log-opts=--all
+#
+# `--redact` 会把命中值在输出里替换成 REDACTED，避免 CI 日志二次泄漏。
+title = "second-brain-vault"
+
+[extend]
+# 保留上游默认规则集（云厂商 AK/SK、私钥、常见 token 等）。
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# 仓库相关的补充规则
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "db-connection-string-with-password"
+description = "连接串里内嵌的真实密码（postgres/mysql/mongo/redis/amqp）"
+regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|rediss?|amqps?)://[^\s:/@]+:[^\s@/]{4,}@[^\s/]'''
+keywords = ["://"]
+
+[[rules]]
+id = "aliyun-access-key-id"
+description = "阿里云 AccessKey ID（OSS 相关笔记容易残留）"
+regex = '''\bLTAI[0-9A-Za-z]{12,30}\b'''
+keywords = ["LTAI"]
+
+[[rules]]
+id = "jwt-token-literal"
+description = "笔记里粘贴的 JWT"
+regex = '''\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b'''
+keywords = ["eyJ"]
+
+[[rules]]
+id = "authorization-bearer-literal"
+description = "硬编码的 Bearer token"
+regex = '''(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._\-]{20,}'''
+keywords = ["authorization"]
+
+[[rules]]
+id = "wechat-pay-api-key"
+description = "微信支付 APIv3 密钥 / 商户私钥"
+regex = '''(?i)(?:api_?v3_?key|mch_?key)\s*[:=]\s*["']?[A-Za-z0-9]{28,36}["']?'''
+keywords = ["api_v3_key", "mch_key"]
+
+# ---------------------------------------------------------------------------
+# 允许清单：这些命中来自被 vendor 的第三方代码或文档占位符，不是泄漏
+# ---------------------------------------------------------------------------
+
+[[allowlists]]
+description = "第三方打包产物、依赖与构建输出"
+paths = [
+  '''^\.obsidian/''',
+  '''^node_modules/''',
+  '''^\.quartz-framework/''',
+  '''^public/''',
+  '''^source/''',
+]
+
+[[allowlists]]
+description = "文档里的示例/占位凭据，不是真实值"
+regexTarget = "match"
+regexes = [
+  '''(?i)(?:password|passwd|secret|token|api_?key|access_?key)\s*[:=]\s*["']?(?:password\d*|postgres|redis|changeme|dummy|example|your[-_a-z]*|xxx+|<[^>]{1,40}>|\$\{[^}]{1,40}\}|""|'')''',
+  # 文档里的本地连接串示例，如 postgres://user:pass@localhost:5432/mydb
+  '''(?i)^(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|rediss?|amqps?)://(?:user|root|admin|postgres|app):(?:pass|password|pwd|secret|test|example|changeme|xxx+|\*+)@''',
+]

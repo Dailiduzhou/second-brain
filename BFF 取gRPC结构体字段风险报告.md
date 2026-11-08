@@ -4,6 +4,7 @@ type: vulnerability
 topic: grpc-nil-safety
 module: bff
 status: seedling
+draft: true
 tags:
   - ccnubox
   - ccnubox/vulnerability

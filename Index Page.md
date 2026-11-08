@@ -4,6 +4,8 @@ type: hub
 status: seedling
 tags:
   - index
+aliases:
+  - index
 ---
 
 ## TODO List

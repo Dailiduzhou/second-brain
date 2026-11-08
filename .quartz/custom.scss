@@ -1,0 +1,11 @@
+// Extra styles layered on top of the Quartz base theme. `scripts/quartz.sh`
+// copies this file to quartz/styles/custom.scss of the pinned Quartz checkout.
+//
+// 中文正文/标题需要 CJK 字体作为回退，而 base.scss 里的 `:root { --bodyFont: ... }`
+// 会盖掉同级自定义属性，所以用 `:root:root` 提高特异度而不是靠 import 顺序。
+:root:root {
+  --headerFont: "Schibsted Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui,
+    sans-serif;
+  --bodyFont: "Source Sans Pro", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui,
+    sans-serif;
+}
