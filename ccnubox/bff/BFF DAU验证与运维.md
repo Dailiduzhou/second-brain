@@ -14,204 +14,199 @@ tags:
 ---
 # DAU 验证与运维
 
-本文档补充 [[BFF DAU实现]]，聚焦 DAU 方案的 Redis key 设计、测试覆盖、监控要点和常见排障问题。
+本文档补充 [[BFF DAU实现]]，聚焦 Redis key 设计、测试覆盖、监控要点和常见排障问题。
+
+> [!note] 源码版本
+> 基于 submodule `source/ccnubox-be` 的 commit `a5d65f8`（`a5d65f8844014ad04eb35bafc401bf1513ee5b38`）。指标名、窗口语义与旧实现不同，历史排障经验不通用，见 [[BFF DAU实现#与旧实现的差异]]。
 
 ## Redis Key 设计
 
-### Key 命名规则
+### 近似指标（`ccnubox_active_users_24h`）
 
 | Key 类型 | 格式 | 示例 | TTL |
 |----------|------|------|-----|
-| 15 分钟桶 | `dau:{date}-{hour}-{minute}` | `dau:2024-01-15-14-30` | 31 天 |
-| 日聚合 | `dau:day:{date}` | `dau:day:2024-01-15` | 31 天 |
-| 临时合并 | `dau:tmp:{date}` | `dau:tmp:2024-01-15` | 60 秒 |
-| 最新值 | `dau:latest` | - | 7 天 |
-| 分布式锁 | `dau:daily:lock` | - | 2 分钟 |
+| 15 分钟桶 | `dau:{date}-{hour}-{minute}` | `dau:2024-01-15-14-30` | 48 小时（每次写入续期） |
+| 合并临时值 | `active_users_24h:tmp:{hostname}:{pid}` | `active_users_24h:tmp:bff-7d9f-abc:1` | 1 小时 |
+
+- 桶前缀仍是 `dau:`，属于改名时保留的旧命名，与指标名已不一致，按前缀检索时别被误导。
+- 桶 TTL 从旧的 30 天（`30*24h+1h`）缩短到 48 小时：滚动窗口只需要 24 小时加余量，因此**无法再回溯某一天的指标值**，需要历史只能查明细集合。
+- 临时 key 按进程隔离，多个 Pod 并发 `PFMERGE` 不会互相覆盖；Pod 重建后残留 key 1 小时内自然过期。
+
+### 精确明细（`activity:daily:v2`）
+
+| Key | 类型 | 格式 | TTL |
+|-----|------|------|-----|
+| 当日集合 | Set | `activity:daily:v2:{date}` | 日期 + 32 天（`EXPIREAT`） |
+| 待落库意图 | Set | `activity:daily:v2:{date}:pending` | 同上 |
+| 已受理计数 | String | `activity:daily:v2:{date}:accepted` | 同上 |
+| 完成标记 | String | `activity:daily:v2:{date}:complete` | 同上（`EXAT`） |
+| 采集起点 | String | `activity:daily:v2:started_at` | 无 |
+
+- 日期按固定 `Asia/Shanghai`（`time.FixedZone`）切分，不受容器时区影响。
+- 每个集合里有一个空串哨兵，用来区分"完整但 0 人活跃"和"key 丢失"；`SCARD` 恒等于"人数 + 1"。
+- `started_at` 只写一次（`SET NX`），代表明细链路的上线时刻，是 `409/40804` 提示的"最早可用日期"的来源。
 
 ### Key 生成函数
 
 ```go
-func DAUBucketKey(t time.Time) string {
-    return "dau:" + t.Local().Truncate(dauBucketMin*time.Minute).Format("2006-01-02-15-04")
+func ActiveUsersBucketKey(t time.Time) string {
+    return activeUsersBucketPrefix + t.Local().Truncate(activeUsersBucketMinutes*time.Minute).Format("2006-01-02-15-04")
 }
 
-func DAUDayKey(date string) string {
-    return dauDayPrefix + date
-}
+func ActiveUsersBucketTTL() time.Duration { return activeUsersBucketTTL } // 48h
 
-func DAUDayKeyForTime(t time.Time) string {
-    return DAUDayKey(t.Local().Format("2006-01-02"))
-}
+func Day(t time.Time) time.Time  // 北京时间自然日零点
+func Key(t time.Time) string     // activity:daily:v2:{date}
 ```
 
 ### 设计含义
 
-- 15 分钟桶用于回溯某一天的完整活跃轨迹。
-- 日聚合 key 用于请求侧快速读取当天 DAU。
-- 临时合并 key 只服务于 `Refresh`。
-- `dau:latest` 只用于 Gauge 启动恢复。
+- 15 分钟桶是唯一的统计源，滚动窗口靠"合并最近 96 个桶"实现，没有日聚合 key。
+- 临时 key 只服务于单次 `Refresh`，不进任何报表。
+- 明细集合是名单类业务的唯一权威来源，不接受"用指标反推名单"。
 
 ## 测试覆盖
 
-### 实时采集测试
+### 滚动窗口
 
-`bff/web/middleware/prometheus_test.go` 验证 `recordDAU` 会正确写 Redis 并更新 Gauge：
+`bff/cron/active_users_test.go` 覆盖三个关键场景：
 
-```go
-func TestPrometheusMiddlewareRecordDAUUpdatesGauge(t *testing.T) {
-    mr, err := miniredis.Run()
-    if err != nil {
-        t.Fatalf("start miniredis: %v", err)
-    }
-    t.Cleanup(mr.Close)
+| 测试 | 验证点 |
+|------|--------|
+| `TestActiveUsers24hRefresherCountsRollingWindow` | 窗口是 `[前一天同刻, 当前整刻)`；当前未满桶和超过 24 小时的桶都被排除 |
+| `TestActiveUsers24hRefresherCrossesMidnight` | 00:00 刷新不会清零，跨零点仍是完整 24 小时 |
+| `TestActiveUsers24hRefresherKeepsLastValueOnRedisError` | Redis 报错时 Gauge 保留上一次成功值，不会被写成 0 |
 
-    client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-    t.Cleanup(func() { _ = client.Close() })
-
-    metrics := metricsx.NewWithRegisterer(prometheus.NewRegistry(), "test")
-    middleware := NewPrometheusMiddleware(metrics, client)
-    now := time.Date(2026, 6, 16, 10, 7, 0, 0, time.Local)
-
-    if err := middleware.recordDAU(context.Background(), "stu-1", now); err != nil {
-        t.Fatalf("record first dau: %v", err)
-    }
-    if err := middleware.recordDAU(context.Background(), "stu-2", now.Add(time.Minute)); err != nil {
-        t.Fatalf("record second dau: %v", err)
-    }
-
-    if got := testutil.ToFloat64(metrics.User.DAU); got != 2 {
-        t.Fatalf("gauge got %v, want 2", got)
-    }
-
-    dayCount, err := client.PFCount(context.Background(), cron.DAUDayKeyForTime(now)).Result()
-    if err != nil {
-        t.Fatalf("count day key: %v", err)
-    }
-    if dayCount != 2 {
-        t.Fatalf("day key count got %d, want 2", dayCount)
-    }
-}
-```
-
-验证重点：
-
-- 同一天内不同学号能正确去重计数。
-- 请求侧写入日聚合 key 后，Gauge 会同步更新。
-
-### 定时刷新测试
-
-`bff/cron/dau_test.go` 验证 `Refresh` 能正确合并桶、写入 Gauge 和 Redis 兜底值：
+窗口边界测试的形状：
 
 ```go
-func TestDAURefresher_Refresh_Ok(t *testing.T) {
-    mr, client := newTestRedis(t)
-    rs := newTestRedsync(client)
-    gauge := newTestGauge()
-    d := NewDAURefresher(client, gauge, rs, nopLogger{})
+now := time.Date(2026, 6, 16, 10, 15, 0, 0, time.Local)
 
-    yesterday := time.Now().Local().AddDate(0, 0, -1).Format("2006-01-02")
-    for i, b := range []string{"00-00", "12-30", "23-45"} {
-        mr.PfAdd(fmt.Sprintf("dau:%s-%s", yesterday, b), fmt.Sprintf("stu-%d", i))
-    }
+mr.PfAdd(ActiveUsersBucketKey(now.Add(-24*time.Hour)), "stu-1")
+mr.PfAdd(ActiveUsersBucketKey(now.Add(-15*time.Minute)), "stu-1", "stu-2")
+// 当前未满桶与超出窗口的桶都不该计入
+mr.PfAdd(ActiveUsersBucketKey(now), "stu-current")
+mr.PfAdd(ActiveUsersBucketKey(now.Add(-24*time.Hour-15*time.Minute)), "stu-old")
 
-    d.Refresh(context.Background())
-
-    if v := readGauge(t, gauge); v != 3 {
-        t.Errorf("gauge: got %v, want 3", v)
-    }
-
-    v, err := client.Get(context.Background(), dauLatestKey).Int64()
-    if err != nil {
-        t.Fatalf("read dau:latest: %v", err)
-    }
-    if v != 3 {
-        t.Errorf("dau:latest: got %d, want 3", v)
-    }
-}
+refresher.refreshAt(context.Background(), now) // 期望 gauge == 2
 ```
 
-额外场景还包括：
+### 请求侧写入
 
-- 同时合并日聚合 key 和 15 分钟桶。
-- 空日期时保持 Gauge 为 0。
+`bff/web/middleware/prometheus_test.go` 中的 `TestPrometheusMiddlewareRecordsCurrentBucket` 验证：
 
-### 启动恢复测试
+- 同一桶内两个学号 → `PFCOUNT` 为 2；
+- 桶 TTL 落在 `(24h, 48h]` 区间；
+- **指标链路不写明细**：`activity:daily:v2:{date}` 必须不存在。这条断言保证了"估算"和"权威名单"不会互相污染。
 
-`Bootstrap` 测试验证 BFF 重启后 Gauge 能从 Redis 恢复：
+### 明细准入
 
-```go
-func TestDAURefresher_Bootstrap_Ok(t *testing.T) {
-    mr, client := newTestRedis(t)
-    rs := newTestRedsync(client)
-    gauge := newTestGauge()
-    d := NewDAURefresher(client, gauge, rs, nopLogger{})
+`bff/web/middleware/login_activity_test.go` 的 `TestAuthenticationRequiresDurableActivityAdmission` 验证 fail-closed 行为：
 
-    mr.Set(dauLatestKey, "456")
+- Redis 报错时返回 503，业务 handler 一次都没执行；
+- handler 执行前，该学号已经出现在 `:pending` 里（先登记后放行）；
+- Redis 恢复后同一请求可以正常通过。
 
-    d.Bootstrap(context.Background())
+### 明细集合
 
-    if v := readGauge(t, gauge); v != 456 {
-        t.Errorf("gauge: got %v, want 456", v)
-    }
-}
-```
+`bff/service/activity/daily_test.go` 覆盖了最容易出错的地方：
+
+- **时区**：`2026-10-18 16:00 UTC` 等于北京时间次日零点，按北京时间归档而不是宿主时区；
+- **保留期**：`TTL == 32 天`；
+- **采集起点**：`started_at` 首次写入后不再变化；
+- **就绪判定**：`not_started` / `collecting` / `missing_dates` 三种原因及对应提示，`collecting` 要给出"最早可用日期"；
+- **缺失日**：能列出具体缺失日期；
+- **已知空日**：完整但 0 人活跃的日期算可用，不报缺失。
+
+`bff/service/feed/whitelist_test.go` 与 `bff/web/feed/white_list_test.go` 从消费侧验证：窗口不足时 `Set("high_activity")` 返回 `activity.ErrNotReady`，HTTP 层映射为 `409` + 业务码 `40804`，msg 里包含缺失日期或最早可用日期。
 
 ## 监控与排障
 
 ### 重点观测项
 
-- `ccnubox_dau`
-- `ccnubox_redis_errors_total{operation=~"PFADD|EXPIRE|PFCOUNT"}`
-- 定时任务执行日志：`dau refresh ok` / `dau refresh: count failed`
-- 启动恢复日志：`dau bootstrap ok` / `dau bootstrap: read latest failed`
+- `ccnubox_active_users_24h`（每个 Pod 一条时间序列）
+- `ccnubox_redis_errors_total{operation=~"PFADD|EXPIRE"}`：请求侧埋点
+- `ccnubox_redis_errors_total{operation="PIPELINE"}`：15 分钟汇总的 `PFMERGE` / `PFCOUNT` / `EXPIRE` 走 `Pipeline`，只上报一次整体结果
+- 定时任务日志：`active users 24h refresh ok`、`active users 24h refresh: count failed`、`daily activity heartbeat failed`、`daily activity initialization failed`
+- HTTP 503 比例与 `活跃明细登记暂时不可用，请稍后重试` 日志
+
+> [!warning] Lua 脚本不在 Redis 埋点覆盖范围内
+> `activity.Record` / `EnsureDay` / `ReadDay` 全部走 `Eval`，而 `InstrumentedRedis` 没有包装 `Eval`。明细链路的 Redis 异常只能通过 503 比例、名单接口的 409/40804 和业务日志发现，指标上看不到。
 
 ### 建议告警
 
 ```promql
+# 请求侧写桶失败
 rate(ccnubox_redis_errors_total{operation=~"PFADD|EXPIRE"}[5m]) > 0
+
+# 汇总任务连续失败（PIPELINE 是 refresh 的唯一 Redis 出入点）
+rate(ccnubox_redis_errors_total{operation="PIPELINE"}[15m]) > 0
+
+# 明细登记失败导致的 503（status 标签取 http.StatusText，值为 "Service Unavailable"）
+rate(ccnubox_http_requests_total{status="Service Unavailable"}[5m]) > 0
 ```
 
 ### 排障路径
 
-当 DAU 异常波动时，优先按以下顺序检查：
+指标异常（不涨、归零、各 Pod 不一致）时按此顺序检查：
 
-1. `ccnubox_dau` 是否突然归零或长时间不变。
-2. `dau:latest` 是否存在，值是否合理。
-3. 当天 `dau:day:{date}` 是否持续增长。
-4. 对应日期的 15 分钟桶是否正常写入。
-5. `dau_refresh` 定时任务是否按 00:05 执行且成功拿到锁。
+1. `ccnubox_active_users_24h` 是否长时间不动 → 任务是否注册成功，日志里有没有 `active users 24h refresh: register cron task failed`。
+2. 当前 15 分钟 key `dau:{date}-{hh}-{mm}` 是否存在且在增长 → 请求侧埋点是否正常（`PFADD` 错误率）。
+3. 把该时刻往前 96 个桶逐个 `EXISTS` → 是否因 Redis 淘汰或 TTL 误配导致缺桶（缺桶会让读数偏低）。
+4. 各 Pod 的读数是否一致 → 不一致说明某个 Pod 的 cron 没跑或系统时钟漂移。
+5. 汇总日志里的 `window_end` 与 `count` 是否与面板一致 → 确认是采集问题还是抓取问题。
+
+明细侧异常（名单接口 409/40804）时：
+
+1. `EXISTS activity:daily:v2:started_at`：不存在说明明细采集没上线（`not_started`）。
+2. `SCARD activity:daily:v2:{date}:pending` 是否持续堆积 → `EnsureDay` 心跳没跑或落库失败。
+3. `EXISTS activity:daily:v2:{date}:complete` 与 `SCARD activity:daily:v2:{date}` 是否满足 `SCARD == complete + 1`。
+4. 直接读接口 msg：`HistoryNotReadyError` 会给出 `not_started` / `collecting` / `missing_dates` 和具体日期。
 
 ## 常见问题
 
-### 为什么使用 HyperLogLog 而不是 Set？
+### 为什么指标用 HyperLogLog，明细用 Set？
 
-HyperLogLog 内存占用固定且很低，适合每天去重用户数统计。Set 的内存占用会随用户量线性增长。
+指标只需要基数，HyperLogLog 内存固定（16384 桶，标准误差约 0.81%），适合 96 个桶滚动合并。明细需要枚举学号并做"N 天里活跃 M 天"的交集统计，只能落 Set；人数上限由 `ReadDay` 的 10 万保护。
 
-### 为什么要双写 15 分钟桶和日聚合 key？
+### 为什么窗口是滚动 24 小时而不是自然日？
 
-- 15 分钟桶提供回溯能力，方便定时任务做最终一致性汇总。
-- 日聚合 key 提供实时查询能力，避免请求侧每次都合并 96 个桶。
+自然日口径要么在零点让读数断崖式下跌，要么得等 00:05 定版才有确定值。滚动窗口的读数连续，曲线更适合看趋势和做告警基线。代价是不能直接当"今日 DAU"用。
 
-### 为什么定时任务在 00:05 执行？
+### 为什么排除当前未满的 15 分钟桶？
 
-给跨天边界预留缓冲时间，降低因为延迟请求或时钟抖动导致的漏记风险。
+半桶合并会让读数在每个 15 分钟周期里先降后升。固定用 96 个已满桶，代价是最多 15 分钟的滞后。
 
-### 多 Pod 部署时如何防止重复计算？
+### 为什么不再需要分布式锁？
 
-通过 redsync 分布式锁保证同一时间只有一个 Pod 执行 `Refresh`。
+Gauge 是进程内变量，Prometheus 按 Pod 抓取，每个 Pod 都必须自己算一遍。旧实现加锁是因为只有抢到锁的 Pod 才会写共享的 `dau:latest`；现在合并成本很低（一次 pipeline 96 个 key），干脆每个 Pod 都算。
+
+### 为什么 TTL 从 30 天缩到 48 小时？
+
+滚动窗口只需要 24 小时的数据，48 小时留出跨时区/时钟抖动余量。副作用是无法再"补算"上周某天的指标值。
 
 ### BFF 重启后 Gauge 会归零吗？
 
-正常不会。`Bootstrap` 会从 `dau:latest` 恢复最近一次写入值。
+正常不会：`InitCronxManager` 在注册 cron 前会同步跑一次 `Refresh`。但这次刷新是"尽力而为"——如果启动时 Redis 不可用，Gauge 会保持 0，直到 15 分钟后任务成功。旧实现有 `dau:latest` 兜底，新实现没有，这是刻意的简化。
 
 ### Redis 故障时会发生什么？
 
-- 实时采集可能失败，Gauge 保持上一次成功值。
-- 定时刷新可能失败，导致当天最终值未更新。
-- 应通过 Redis 错误指标和 cron 日志联动排查。
+- 指标链路：`PFADD` 失败只丢一次近似计数，请求正常返回，Gauge 保留上一次成功值。
+- 明细链路：`activity.Record` 失败会让请求直接返回 503，不会放进未登记的流量。
+- 整体宕机：Redis 全挂时请求在更早的 `CheckSession` 就失败了（401），轮不到这两条链路。
+
+指标与明细的失败策略不同是设计选择，不是遗漏；调整前需确认业务能接受"漏统计"还是"拒请求"。
+
+### 名单接口返回 409 / 40804 是什么意思？
+
+`activity.ErrNotReady` 的映射。说明要求的自然日窗口内还有日期没有完成采集：可能刚开始采集（`collecting`，msg 会给最早可用日期）、从未上线（`not_started`），或存在缺失日期（`missing_dates`）。这时不要用指标反推名单，也不要把缺失日当作空结果。
+
+### 为什么 `dau:` 前缀还在，指标名却改了？
+
+改名只动了指标定义和刷新器文件，桶前缀 `dau:` 保留了下来。检索 Redis key 时按 `dau:` 前缀找，检索指标时按 `ccnubox_active_users_24h` 找，两者名字已经对不上。
 
 ## 参考资料
 
 - [Redis HyperLogLog](https://redis.io/docs/data-types/hyperloglog/)
 - [Prometheus Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- [redsync 分布式锁](https://github.com/go-redsync/redsync)
+- [Redis EVAL / Lua 脚本](https://redis.io/docs/latest/develop/interact/programmability/eval-intro/)
