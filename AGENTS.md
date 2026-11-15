@@ -82,6 +82,7 @@ database/  message-queue/  algorithm/  testing/  productivity/  knowledge-manage
 - 标题应表达问题或主题，避免“其他”“补充”“一些想法”这类无检索价值的命名。
 - 代码块只保留支撑论点的最小片段；省略内容用注释说明，不得省略会改变语义的错误处理、并发或事务边界。
 - 优先解释代码承担的职责、调用关系和设计取舍，不逐行翻译源码。
+- 保留原文的语言风格，不删除原有文本的幽默内容。
 
 ## Git submodule 与源码
 
